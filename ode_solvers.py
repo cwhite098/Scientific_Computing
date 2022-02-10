@@ -6,7 +6,7 @@ from plots import *
 
 def euler_step(X, t, h, f):
     '''
-    Function that 
+    Function that carries out one step of the Euler method.
 
     ARGS:   X = the value of the ODE's solution at time t.
             t = time at which to evaluate the gradient.
@@ -21,6 +21,31 @@ def euler_step(X, t, h, f):
     # Work out the gradient and apply the Euler method step.
     dxdt = f(X,t)
     Xnew = X + h*np.array(dxdt)
+    
+    return Xnew
+
+def RK4_step(X, t, h, f):
+    '''
+    Function that carries out one step of the RK4 numerical method.
+
+    ARGS:   X = the value of the ODE's solution at time t.
+            t = time at which to evaluate the gradient.
+            h = the timestep to be carried out.
+            f = the ODE that is being solved.
+    
+    RETURNS:    Xnew = the ODE's solution evaluated at t+h.
+    
+    EXAMPLE:    Xnew = RK4_step(X=1, t=0, h=0.1, f)
+                where f(X,t) = dX/dt
+    '''
+    # Work out ks
+    k1 = np.array(f(X,t))
+    k2 = np.array(f(X+h*(k1/2), t+(h/2)))
+    k3 = np.array(f(X+h*(k2/2), t+(h/2)))
+    k4 = np.array(f(X+h*k3, t+h))
+
+    # Work out next X
+    Xnew = X + (1/6)*h*(k1 + (2*k2) + (2*k3) + k4)
     
     return Xnew
 
@@ -108,10 +133,10 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
 def main():
 
 
-    t = np.linspace(0,3.14,315)
+    t = np.linspace(0,6,61)
     X0 = np.array([0,1])
 
-    X = solve_ode(euler_step, g, t, X0)
+    X = solve_ode(RK4_step, g, t, X0)
 
     x0_true = np.sin(t)
     x1_true = np.cos(t)
@@ -124,8 +149,10 @@ def main():
 
     t = np.linspace(0,1,11)
     X0= np.array([1])
-    X = solve_ode(euler_step, f, t, X0)
-    plot_solution(t, X)
+    X = solve_ode(RK4_step, f, t, X0)
+    X_true = np.e**t
+
+    plot_solution(t, X, X_true)
 
     return 0
 
