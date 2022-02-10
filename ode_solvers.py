@@ -1,6 +1,7 @@
-from ode import f
+from ode import f, g
 import numpy as np
 import sys
+from plots import *
 
 
 def euler_step(X, t, h, f):
@@ -19,7 +20,7 @@ def euler_step(X, t, h, f):
     '''
     # Work out the gradient and apply the Euler method step.
     dxdt = f(X,t)
-    Xnew = X + h*dxdt
+    Xnew = X + h*np.array(dxdt)
     
     return Xnew
 
@@ -85,8 +86,14 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
     '''
 
     # Initialise the solution vector and add initial condition
-    X = np.zeros(len(t))
-    X[0] = X0
+    if len(X0) > 1:
+        # If the ODE is 2nd order or more / a system of ODEs
+        X = np.zeros((len(t), X0.shape[0]))
+        X[0,:] = X0
+    else:
+        # If the ODE is 1st order
+        X = np.zeros(len(t))
+        X[0] = X0
 
     # Loop through the time vector and update the solution vector
     for i in range(len(t)-1):
@@ -101,11 +108,24 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
 def main():
 
 
-    t = np.linspace(0,1,4)
-    X0 = 1
+    t = np.linspace(0,3.14,315)
+    X0 = np.array([0,1])
 
+    X = solve_ode(euler_step, g, t, X0)
+
+    x0_true = np.sin(t)
+    x1_true = np.cos(t)
+    X_true = np.array([x0_true, x1_true]).transpose()
+
+    plot_solution(t, X, X_true)
+    plot_solution(X[:,0], X[:,1])
+
+
+
+    t = np.linspace(0,1,11)
+    X0= np.array([1])
     X = solve_ode(euler_step, f, t, X0)
-    print(X)
+    plot_solution(t, X)
 
     return 0
 
