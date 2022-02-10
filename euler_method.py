@@ -10,36 +10,36 @@ def euler_step(X, t, h, f):
     return Xnew
 
 
-def solve_to(t, t_end, X, h_max, f, solver):
+def solve_to(t, t_end, X0, h_max, f, solver):
+
+    h = round(t_end - t, 9)
+
+    if h > h_max:
+        while round(t,9) < round(t_end, 9):
+            X1 = solver(X0, t, h_max, f)
+            
+            X0 = X1
+            t += h_max
 
 
-    while t < t_end:
-        Xnew = solver(X, t, h_max, f)
-        print(Xnew)
-        X = Xnew
-        t = t + h_max
+        if (t < t_end) and (t + h_max > t_end):
+            X1 = solver(X0, t, t_end-t, f)
+            print('finishing off')
 
-    if not t == t_end:
-        h = t - t_end
-        Xnew = solver(X, t, h, f)
-        X = Xnew
-        t = t + h
-        print('h', h)
-        print(Xnew)
+    else:
+        X1 = solver(X0, t, h, f)
 
+    return X1
 
-    return X
+def solve_ode(method, f, t, X0, h_max = 0.1):
 
-def solve_ode(method, f, t, X0):
-
-    X = [X0]
-    h_max = 0.1
+    X = np.zeros(len(t))
+    X[0] = X0
 
     for i in range(len(t)-1):
         t0 = t[i]
         t1 = t[i+1]
-        Xnew = solve_to(t0, t1, X[i], h_max, f, method)
-        X.append(Xnew)
+        X[i+1] = solve_to(t0, t1, X[i], h_max, f, method)
 
     return X
 
@@ -47,10 +47,10 @@ def solve_ode(method, f, t, X0):
 
 def main():
 
-    #solve_to(0, 1, 1, 0.001, f, euler_step)
     X0 = 1
-    t = np.linspace(0, 1, 10)
+    t = np.linspace(0.0, 1.0, 3)
     X = solve_ode(euler_step, f, t, X0)
+    print(t)
     print(X)
 
     return 0
