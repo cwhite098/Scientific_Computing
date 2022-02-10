@@ -1,13 +1,16 @@
 import matplotlib.pyplot as plt
 
 
-def plot_solution(t, X, X_true=None):
+def plot_solution(t, X, xlabel='t', ylabel='x', title='Solution', X_true=None):
     '''
     Function that plots the numerical solution to an ODE as well as the true solution
     if required.
 
     ARGS:   t = the time over the ODE has been solved.
             X = the numerical solution at each t_i in t.
+            xlabel = the label for the x-axis (string)
+            ylabel = the label for the y-axis (string)
+            title = the title for the plot (string)
             X_true = the true solution at each t_i in t.
     
     EXAMPLE:    plot_solution(t=linspace(0,1,11), X, X_true)
@@ -21,13 +24,11 @@ def plot_solution(t, X, X_true=None):
             for i in range(number_of_vars):
                 plt.plot(t, X_true[:,i], label='True Solution, x'+str(i))
                 plt.plot(t, X[:,i], label='Approx Solution, x'+str(i))
-            plt.title('Approx and True Solution to ODE'), plt.xlabel('t'), plt.legend()
-
+            
         # No X_true provided, just plot X
         else:
             for i in range(number_of_vars):
                 plt.plot(t, X[:,i], label='Approx Solution, x'+str(i))
-            plt.title('Approx Solution to ODE'), plt.xlabel('t'), plt.legend()
 
     else:
         number_of_vars = 1
@@ -35,13 +36,10 @@ def plot_solution(t, X, X_true=None):
         if X_true is not None:
             plt.plot(t, X_true[:], label='True Solution')
             plt.plot(t, X[:], label='Approx Solution')
-            plt.title('Approx and True Solution to ODE'), plt.xlabel('t'), plt.legend()
 
         # No X_true provided, just plot X
         else:
             plt.plot(t, X[:], label='Approx Solution')
-            plt.title('Approx Solution to ODE'), plt.xlabel('t'), plt.legend()
-
     
-    
+    plt.title(title), plt.xlabel(xlabel), plt.ylabel(ylabel), plt.legend()
     plt.show()

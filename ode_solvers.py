@@ -49,6 +49,26 @@ def RK4_step(X, t, h, f):
     
     return Xnew
 
+def midpoint_step(X, t, h, f):
+    '''
+    Function that carries out one step of the midpoint numerical method.
+    https://en.wikipedia.org/wiki/Midpoint_method
+
+    ARGS:   X = the value of the ODE's solution at time t.
+            t = time at which to evaluate the gradient.
+            h = the timestep to be carried out.
+            f = the ODE that is being solved.
+    
+    RETURNS:    Xnew = the ODE's solution evaluated at t+h.
+    
+    EXAMPLE:    Xnew = midpoint_step(X=1, t=0, h=0.1, f)
+                where f(X,t) = dX/dt
+    '''
+    # calculate Xnew using formula
+    Xnew = X + h*np.array(f(X+(h/2)*np.array(f(X,t)), t+(h/2)))
+    
+    return Xnew
+
 
 def solve_to(t0, t1, X0, h_max, f, method):
     '''
@@ -132,27 +152,26 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
 
 def main():
 
-
     t = np.linspace(0,6,61)
     X0 = np.array([0,1])
 
-    X = solve_ode(RK4_step, g, t, X0)
+    X = solve_ode(midpoint_step, g, t, X0)
 
     x0_true = np.sin(t)
     x1_true = np.cos(t)
     X_true = np.array([x0_true, x1_true]).transpose()
 
-    plot_solution(t, X, X_true)
-    plot_solution(X[:,0], X[:,1])
+    plot_solution(t, X, 't', 'x0 and x1', 'Solution in Time', X_true)
+    plot_solution(X[:,0], X[:,1], 'x0', 'x1', 'x1 against x0')
 
 
 
     t = np.linspace(0,1,11)
     X0= np.array([1])
-    X = solve_ode(RK4_step, f, t, X0)
+    X = solve_ode(midpoint_step, f, t, X0)
     X_true = np.e**t
 
-    plot_solution(t, X, X_true)
+    plot_solution(t, X, 't', 'x', 'Solution in Time', X_true)
 
     return 0
 
