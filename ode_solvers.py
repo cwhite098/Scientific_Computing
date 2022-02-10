@@ -173,6 +173,8 @@ def main():
 
     plot_solution(t, X, 't', 'x', 'Solution in Time', X_true)
 
+    plot_error([euler_step, RK4_step, midpoint_step], f, 0, 1, np.array([1]), np.e)
+
     return 0
 
 
