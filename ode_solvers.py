@@ -69,6 +69,29 @@ def midpoint_step(X, t, h, f):
     
     return Xnew
 
+def heun3_step(X, t, h, f):
+    '''
+    Function that carries out one step of the Heun 3rd order method.
+
+    ARGS:   X = the value of the ODE's solution at time t.
+            t = time at which to evaluate the gradient.
+            h = the timestep to be carried out.
+            f = the ODE that is being solved.
+    
+    RETURNS:    Xnew = the ODE's solution evaluated at t+h.
+    
+    EXAMPLE:    Xnew = heun3_step(X=1, t=0, h=0.1, f)
+                where f(X,t) = dX/dt
+    '''
+    # calculate Xnew using formula
+    k1 = h*np.array(f(X, t))
+    k2 = h*np.array(f(X+(k1/3), t+(h/3)))
+    k3 = h*np.array(f(X+(2*(k2/3)), t+(2*(h/3))))
+
+    Xnew = X + k1/4 + 3*k3/4
+    
+    return Xnew
+
 
 def solve_to(t0, t1, X0, h_max, f, method):
     '''
@@ -155,7 +178,7 @@ def main():
     t = np.linspace(0,6,61)
     X0 = np.array([0,1])
 
-    X = solve_ode(midpoint_step, g, t, X0)
+    X = solve_ode(heun3_step, g, t, X0)
 
     x0_true = np.sin(t)
     x1_true = np.cos(t)
@@ -166,14 +189,17 @@ def main():
 
 
 
-    t = np.linspace(0,1,11)
+    t = np.linspace(0,1,101)
     X0= np.array([1])
-    X = solve_ode(midpoint_step, f, t, X0)
-    X_true = np.e**t
+    X = solve_ode(RK4_step, f, t, X0)
+    X_true = np.e**(t)
+    plot_solution(t, X, 't', 'x', 'Solution in Time RK4', X_true)
 
-    plot_solution(t, X, 't', 'x', 'Solution in Time', X_true)
+    X = solve_ode(euler_step, f, t, X0)
+    X_true = np.e**(t)
+    plot_solution(t, X, 't', 'x', 'Solution in Time E', X_true)
 
-    plot_error([euler_step, RK4_step, midpoint_step], f, 0, 1, np.array([1]), np.e)
+    plot_error([heun3_step, euler_step, RK4_step, midpoint_step], f, 0, 1, np.array([1]), np.e**(1))
 
     return 0
 
