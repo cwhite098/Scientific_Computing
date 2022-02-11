@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from ode_solvers import *
+import ode_solvers as ode
+from ode import *
 
 
 def plot_solution(t, X, xlabel='t', ylabel='x', title='Solution', X_true=None):
@@ -54,25 +55,26 @@ def plot_error(methods, f, t0, t1, X0, X1_true):
     method_errors = []
 
     for method in methods:
-        hs = np.logspace(-1, -5, 5)
+        hs = np.logspace(-1, -5, 50)
         errors = []
 
         for h in hs:
-            print(h)
-            t = np.arange(t0,t1,h)
-            X = solve_ode(method, f, t, X0, h_max=1)
-
-            error = np.abs(X[-1] - X1_true)
-            errors.append(error)
+            # I THINK THIS IS THE FUCKER - doesn't hit t=1 properly
+            t = np.linspace(t0,t1,5)
+            X = ode.solve_ode(method, f, t, X0, h_max=h)
             
-        method_errors.append(errors)
+            error = np.abs(X[-1] - X1_true)
+    
+            errors.append(error)
 
-    i=0
-    for errs in method_errors:
-        plt.loglog(hs, errs, label = str(methods[i]))
-        i+=1
+        print(X[-1])
+
+        plt.loglog(hs, errors, label = str(method))
+
     
     plt.xlabel('Delta t'), plt.ylabel('Error'), plt.title('Error Plot'), plt.legend()
     plt.show()
 
     return 0
+
+

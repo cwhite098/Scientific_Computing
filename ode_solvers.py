@@ -1,7 +1,7 @@
 from ode import f, g
 import numpy as np
 import sys
-from plots import *
+import plots as p
 
 
 def euler_step(X, t, h, f):
@@ -39,13 +39,13 @@ def RK4_step(X, t, h, f):
                 where f(X,t) = dX/dt
     '''
     # Work out ks
-    k1 = np.array(f(X,t))
-    k2 = np.array(f(X+h*(k1/2), t+(h/2)))
-    k3 = np.array(f(X+h*(k2/2), t+(h/2)))
-    k4 = np.array(f(X+h*k3, t+h))
+    k1 = np.array( f( X , t ) )
+    k2 = np.array( f( X+h*(k1/2) , t+(h/2) ) )
+    k3 = np.array( f( X+h*(k2/2) , t+(h/2) ) )
+    k4 = np.array( f( X+h*k3 , t+h ) )
 
     # Work out next X
-    Xnew = X + (1/6)*h*(k1 + (2*k2) + (2*k3) + k4)
+    Xnew = X + (1/6) * h * (k1 + (2*k2) + (2*k3) + k4)
     
     return Xnew
 
@@ -184,8 +184,8 @@ def main():
     x1_true = np.cos(t)
     X_true = np.array([x0_true, x1_true]).transpose()
 
-    plot_solution(t, X, 't', 'x0 and x1', 'Solution in Time', X_true)
-    plot_solution(X[:,0], X[:,1], 'x0', 'x1', 'x1 against x0')
+    p.plot_solution(t, X, 't', 'x0 and x1', 'Solution in Time', X_true)
+    p.plot_solution(X[:,0], X[:,1], 'x0', 'x1', 'x1 against x0')
 
 
 
@@ -193,13 +193,13 @@ def main():
     X0= np.array([1])
     X = solve_ode(RK4_step, f, t, X0)
     X_true = np.e**(t)
-    plot_solution(t, X, 't', 'x', 'Solution in Time RK4', X_true)
+    p.plot_solution(t, X, 't', 'x', 'Solution in Time RK4', X_true)
 
     X = solve_ode(euler_step, f, t, X0)
     X_true = np.e**(t)
-    plot_solution(t, X, 't', 'x', 'Solution in Time E', X_true)
+    p.plot_solution(t, X, 't', 'x', 'Solution in Time E', X_true)
 
-    plot_error([heun3_step, euler_step, RK4_step, midpoint_step], f, 0, 1, np.array([1]), np.e**(1))
+    p.plot_error([heun3_step, euler_step, RK4_step, midpoint_step], f, 0, 1, np.array([1]), np.e**(1))
 
     return 0
 
