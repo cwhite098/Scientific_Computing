@@ -4,6 +4,7 @@ def f(x,t):
 
 
 def g(X,t):
+    
     x = X[0]
     y = X[1]
     dxdt = y

@@ -1,7 +1,10 @@
+from xml.dom.expatbuilder import InternalSubsetExtractor
 from ode import f, g
 import numpy as np
 import sys
 import plots as p
+import matplotlib.pyplot as plt
+import time
 
 
 def euler_step(X, t, h, f):
@@ -117,7 +120,7 @@ def solve_to(t0, t1, X0, h_max, f, method):
     # Verify h is not greater than h_max
     if h > h_max:
         # Repeat until t1 is reached
-        while round(t0,15) < round(t1, 15):
+        while np.round(t0,15) < np.round(t1, 15):
             # If applying method with step h_max will make t > t1, use different h,
             # such that the ODE is evaluated at t1 exactly
             if (t0 < t1) and (t0 + h_max > t1):
@@ -141,7 +144,7 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
     '''
     Function that generates a series of numerical estimates to the ODE provided
 
-    ARGS:   method = the numerical method to use. (euler_step or RK4_step).
+    ARGS:   method = (string) the numerical method to use. ('euler'/'rk4'/'midpoint'/'heun3')
             f = the function containing the ODE to be solved.
             t = the timesteps to evaulate the ODE at.
             X0 = the initial coniditions of the ODE.
@@ -152,6 +155,11 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
     EXAMPLE:    X = solve_ode(euler_step, f, t=np.linspace(0,1,11), X0=1, h_max=0.1)
                 where f(X,t) = dX/dt
     '''
+
+    method_dict = { 'euler': euler_step,
+                    'rk4': RK4_step,
+                    'midpoint': midpoint_step,
+                    'heun3': heun3_step}
 
     # Initialise the solution vector and add initial condition
     if len(X0) > 1:
@@ -167,9 +175,62 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
     for i in range(len(t)-1):
         t0 = t[i]
         t1 = t[i+1]
-        X[i+1] = solve_to(t0, t1, X[i], h_max, f, method)
+        X[i+1] = solve_to(t0, t1, X[i], h_max, f, method_dict[method])
 
     return X
+
+
+def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true):
+    '''
+    Function that takes multiple numericcal methods and assessed their speed and
+    performance for a desired error tolerance. Produces a plot to show the required
+    step size to reach the desired tolerance.
+
+    ARGS:   methods = list of strings that give the methods to be assessed.
+            f = the ODE to test the methods with.
+            desirerd_tol = the desired tolerance to assess the methods at.
+            t0 = the initial time to assess the ODE solution from.
+            t1 = the end time for the ODE solution, where the error is calculated.
+            X0 = the initial conditions for the ODE.
+            X_true = the true value of X at t1.
+
+    EXAMPLE: evaluate_methods(['euler', 'rk4'], f, desired_tol = 10**-4, 0, 1, 1, np.e)
+    '''
+    h_line = np.array([desired_tol]*200)
+    # Plot the error vs h graph but do not show so more lines can be added.
+    method_errors, hs = p.plot_error(methods, f, t0, t1, X0, X_true, show_plot=False)
+
+    i = 0
+    # Loop through the returned errors for each method
+    for errs in method_errors:
+        method = methods[i]
+        errs = np.array(errs)
+        # Find the intersection between the error lines and the desired tolerance
+        intersection = np.argwhere(np.diff(np.sign(h_line-errs))).flatten()
+
+        print('\nMethod:',method)
+
+        # If method can reach the tolerance print details - time and required h
+        if not intersection.size > 0:
+            print('Method cannot reach desired tol')
+        else:
+            print('h to meet desired tol:', hs[intersection])
+            # do a quick solve using the hs[intersection] and time it, print the times
+            start_time = time.time()
+            t=np.linspace(t0,t1,10)
+            solve_ode(method, f, t, X0, h_max =hs[intersection] )
+            end_time = time.time()
+            print('Time taken to solve to desired tol: '+ str(end_time-start_time) + 's')
+            # Plot the lines on the error vs h graph
+            plt.axvline(hs[intersection], c='r', linestyle='--')
+
+        i+=1
+    
+    # plot the desired tolerance line. 
+    plt.axhline(h_line[0], linestyle = '--', c='k', label='Desired Tol')
+    plt.legend(), plt.show()
+
+    return 0
 
 
 
@@ -178,7 +239,7 @@ def main():
     t = np.linspace(0,6,61)
     X0 = np.array([0,1])
 
-    X = solve_ode(heun3_step, g, t, X0)
+    X = solve_ode('heun3', g, t, X0)
 
     x0_true = np.sin(t)
     x1_true = np.cos(t)
@@ -187,19 +248,19 @@ def main():
     p.plot_solution(t, X, 't', 'x0 and x1', 'Solution in Time', X_true)
     p.plot_solution(X[:,0], X[:,1], 'x0', 'x1', 'x1 against x0')
 
-
-
     t = np.linspace(0,1,101)
     X0= np.array([1])
-    X = solve_ode(RK4_step, f, t, X0)
+    X = solve_ode('rk4', f, t, X0)
     X_true = np.e**(t)
     p.plot_solution(t, X, 't', 'x', 'Solution in Time RK4', X_true)
 
-    X = solve_ode(euler_step, f, t, X0)
+    X = solve_ode('euler', f, t, X0)
     X_true = np.e**(t)
     p.plot_solution(t, X, 't', 'x', 'Solution in Time E', X_true)
 
-    p.plot_error([heun3_step, euler_step, RK4_step, midpoint_step], f, 0, 1, np.array([1]), np.e**(1))
+    #p.plot_error(['heun3', 'euler', 'rk4', 'midpoint'], g, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
+
+    evaluate_methods(['euler', 'rk4', 'heun3'], f, 10**-6, 0, 1, np.array([1]), np.e)
 
     return 0
 
