@@ -153,7 +153,7 @@ def solve_ode(method, f, t, X0, **params):
     ARGS:   method = (string) the numerical method to use. ('euler'/'rk4'/'midpoint'/'heun3')
             f = the function containing the ODE to be solved.
             t = the timesteps to evaulate the ODE at.
-            X0 = the initial coniditions of the ODE.
+            X0 = (list) the initial coniditions of the ODE.
             **params:   h_max = the maximum step size to use in the solution
                         any parameters necessary to solve the ODE.
     
@@ -166,6 +166,9 @@ def solve_ode(method, f, t, X0, **params):
                     'rk4': RK4_step,
                     'midpoint': midpoint_step,
                     'heun3': heun3_step}
+
+    # Make the initial conditions and n array
+    X0 = np.array(X0)
 
     # Initialise the solution vector and add initial condition
     if len(X0) > 1:
@@ -244,8 +247,7 @@ def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true, **params):
 def main():
 
     t = np.linspace(0,6,61)
-    X0 = np.array([0,1])
-
+    X0 = [0,1]
     X = solve_ode('heun3', g, t, X0)
 
     x0_true = np.sin(t)
@@ -256,7 +258,7 @@ def main():
     p.plot_solution(X[:,0], X[:,1], 'x0', 'x1', 'x1 against x0')
 
     t = np.linspace(0,1,101)
-    X0= np.array([1])
+    X0= [1]
     X = solve_ode('rk4', f, t, X0, h_max=0.001)
     X_true = np.e**(t)
     p.plot_solution(t, X, 't', 'x', 'Solution in Time RK4', X_true)
@@ -266,7 +268,7 @@ def main():
     p.plot_solution(t, X, 't', 'x', 'Solution in Time E', X_true)
 
     t = np.linspace(0, 100, 1001)
-    X = solve_ode('rk4', predator_prey, t, np.array([1,1]), a=1, b=0.3, d=0.1)
+    X = solve_ode('rk4', predator_prey, t, [1,1], a=1, b=0.3, d=0.1, h_max=0.001)
     p.plot_solution(t, X, 't', 'x and y', 'Predator-Prey Solution')
 
    # p.plot_error(['heun3', 'euler'], g, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
@@ -275,7 +277,7 @@ def main():
 
     #p.plot_error(['euler', 'rk4'], f2, 0, 1, np.array([1]), np.e, a=1)
 
-    evaluate_methods(['euler', 'rk4'], f, 10**-5, 0, 1, np.array([1]), np.e, a=1)
+    evaluate_methods(['euler', 'rk4'], f, 10**-5, 0, 1, [1], np.e, a=1)
 
     return 0
 

@@ -59,7 +59,7 @@ def plot_error(methods, f, t0, t1, X0, X1_true,  **params):
             f = the function of the ODE that is to be evaluated.
             t0 = the initial time for the solution.
             t1 = the final time of the solution, this is where the error is calculated.
-            X0 = the initial conditions of the ODE.
+            X0 = (list) the initial conditions of the ODE.
             X1_true = the true value of the ODE's solution at t=t1.
             **params:   show_plot = bool that controls whether the plot is shown or not.
                         any parameters necessary for the ODE being solved
