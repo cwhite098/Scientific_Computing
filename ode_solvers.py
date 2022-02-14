@@ -1,5 +1,5 @@
 from xml.dom.expatbuilder import InternalSubsetExtractor
-from ode import f, g, predator_prey
+from ode import f, g, predator_prey, f2
 import numpy as np
 import sys
 import plots as p
@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 
 
-def euler_step(X, t, h, f, params):
+def euler_step(X, t, h, f, **params):
     '''
     Function that carries out one step of the Euler method.
 
@@ -27,7 +27,7 @@ def euler_step(X, t, h, f, params):
     
     return Xnew
 
-def RK4_step(X, t, h, f, params):
+def RK4_step(X, t, h, f, **params):
     '''
     Function that carries out one step of the RK4 numerical method.
 
@@ -52,7 +52,7 @@ def RK4_step(X, t, h, f, params):
     
     return Xnew
 
-def midpoint_step(X, t, h, f, params):
+def midpoint_step(X, t, h, f, **params):
     '''
     Function that carries out one step of the midpoint numerical method.
     https://en.wikipedia.org/wiki/Midpoint_method
@@ -72,7 +72,7 @@ def midpoint_step(X, t, h, f, params):
     
     return Xnew
 
-def heun3_step(X, t, h, f, params):
+def heun3_step(X, t, h, f, **params):
     '''
     Function that carries out one step of the Heun 3rd order method.
 
@@ -96,7 +96,7 @@ def heun3_step(X, t, h, f, params):
     return Xnew
 
 
-def solve_to(t0, t1, X0, h_max, f, method, params):
+def solve_to(t0, t1, X0, f, method, **params):
     '''
     Function that evaluates the solution to the ODE, X1, at time t1 given X0 and t0.
     i.e. the function carries out one iteration of the chosen numerical method.
@@ -105,15 +105,21 @@ def solve_to(t0, t1, X0, h_max, f, method, params):
     ARGS:   t0 = the intial time.
             t1 = the time the ODE will be evaulated at.
             X0 = the value of X at t0.
-            h_max = the maximum step size to be used to solve the ODE.
             f = the ODE to be solved
             method = the numerical method to use. (euler_step or RK4_step).
+            **params:   h_max = the maximum step size to use.
+                        any other parameters need to solve the ODE.
     
     RETURNS:    X1 = the solution to the ODE evaluated at t1.
     
-    EXAMPLE:    X1 = solve_to(t0=0, t1=0.1, X0=1, h_max=0.1, f, euler_step)
+    EXAMPLE:    X1 = solve_to(t0=0, t1=0.1, X0=1, f, euler_step, h_max=0.001)
                 where f(X,t) = dX/dt
     '''
+    try:
+        h_max = params['h_max']
+    except KeyError:
+        h_max = 0.1
+
     # Find the time for the method to step over
     h = t1 - t0
 
@@ -124,23 +130,23 @@ def solve_to(t0, t1, X0, h_max, f, method, params):
             # If applying method with step h_max will make t > t1, use different h,
             # such that the ODE is evaluated at t1 exactly
             if (t0 < t1) and (t0 + h_max > t1):
-                X1 = method(X0, t0, t1-t0, f, params)
+                X1 = method(X0, t0, t1-t0, f, **params)
                 t0 = t1
 
             # Apply method with step of h_max
             else:
-                X1 = method(X0, t0, h_max, f, params)
+                X1 = method(X0, t0, h_max, f, **params)
                 X0 = X1
                 t0 += h_max
 
     # If h < h_max, compute next solution in one step
     else:
-        X1 = method(X0, t0, h, f, params)
+        X1 = method(X0, t0, h, f, **params)
 
     return X1
 
 
-def solve_ode(method, f, t, X0, h_max = 0.1, **params):
+def solve_ode(method, f, t, X0, **params):
     '''
     Function that generates a series of numerical estimates to the ODE provided
 
@@ -148,14 +154,14 @@ def solve_ode(method, f, t, X0, h_max = 0.1, **params):
             f = the function containing the ODE to be solved.
             t = the timesteps to evaulate the ODE at.
             X0 = the initial coniditions of the ODE.
-            h_max = the maximum step size to be used to solve the ODE.
+            **params:   h_max = the maximum step size to use in the solution
+                        any parameters necessary to solve the ODE.
     
     RETURNS:    X = list of solutions for every time in t.
     
     EXAMPLE:    X = solve_ode(euler_step, f, t=np.linspace(0,1,11), X0=1, h_max=0.1)
                 where f(X,t) = dX/dt
     '''
-
     method_dict = { 'euler': euler_step,
                     'rk4': RK4_step,
                     'midpoint': midpoint_step,
@@ -175,7 +181,7 @@ def solve_ode(method, f, t, X0, h_max = 0.1, **params):
     for i in range(len(t)-1):
         t0 = t[i]
         t1 = t[i+1]
-        X[i+1] = solve_to(t0, t1, X[i], h_max, f, method_dict[method], params)
+        X[i+1] = solve_to(t0, t1, X[i], f, method_dict[method], **params)
 
     return X
 
@@ -193,12 +199,13 @@ def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true, **params):
             t1 = the end time for the ODE solution, where the error is calculated.
             X0 = the initial conditions for the ODE.
             X_true = the true value of X at t1.
+            **params = any parameters that are required to solve the ODE.
 
     EXAMPLE: evaluate_methods(['euler', 'rk4'], f, desired_tol = 10**-4, 0, 1, 1, np.e)
     '''
     h_line = np.array([desired_tol]*200)
     # Plot the error vs h graph but do not show so more lines can be added.
-    method_errors, hs = p.plot_error(methods, f, t0, t1, X0, X_true, show_plot=False)
+    method_errors, hs = p.plot_error(methods, f, t0, t1, X0, X_true, show_plot=False, **params)
 
     i = 0
     # Loop through the returned errors for each method
@@ -218,7 +225,7 @@ def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true, **params):
             # do a quick solve using the hs[intersection] and time it, print the times
             start_time = time.time()
             t=np.linspace(t0,t1,10)
-            solve_ode(method, f, t, X0, h_max =hs[intersection] )
+            solve_ode(method, f, t, X0, h_max = hs[intersection], **params)
             end_time = time.time()
             print('Time taken to solve to desired tol: '+ str(end_time-start_time) + 's')
             # Plot the lines on the error vs h graph
@@ -250,7 +257,7 @@ def main():
 
     t = np.linspace(0,1,101)
     X0= np.array([1])
-    X = solve_ode('rk4', f, t, X0)
+    X = solve_ode('rk4', f, t, X0, h_max=0.001)
     X_true = np.e**(t)
     p.plot_solution(t, X, 't', 'x', 'Solution in Time RK4', X_true)
 
@@ -262,9 +269,13 @@ def main():
     X = solve_ode('rk4', predator_prey, t, np.array([1,1]), a=1, b=0.3, d=0.1)
     p.plot_solution(t, X, 't', 'x and y', 'Predator-Prey Solution')
 
-    #p.plot_error(['heun3', 'euler', 'rk4', 'midpoint'], g, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
+   # p.plot_error(['heun3', 'euler'], g, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
 
-    #evaluate_methods(['euler', 'rk4', 'heun3'], g, 10**-5, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
+    #p.plot_error(['rk4', 'euler'], f, 0, 1, np.array([1]), np.e)
+
+    #p.plot_error(['euler', 'rk4'], f2, 0, 1, np.array([1]), np.e, a=1)
+
+    evaluate_methods(['euler', 'rk4'], f, 10**-5, 0, 1, np.array([1]), np.e, a=1)
 
     return 0
 

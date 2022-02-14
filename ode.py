@@ -2,6 +2,10 @@ def f(x,t, params):
 
     return x
 
+def f2(x,t, params):
+    a = params['a']
+    return x*a
+
 
 def g(X,t, params):
     
