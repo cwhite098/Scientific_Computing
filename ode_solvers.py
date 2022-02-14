@@ -1,5 +1,5 @@
 from xml.dom.expatbuilder import InternalSubsetExtractor
-from ode import f, g
+from ode import f, g, predator_prey
 import numpy as np
 import sys
 import plots as p
@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 
 
-def euler_step(X, t, h, f):
+def euler_step(X, t, h, f, params):
     '''
     Function that carries out one step of the Euler method.
 
@@ -22,12 +22,12 @@ def euler_step(X, t, h, f):
                 where f(X,t) = dX/dt
     '''
     # Work out the gradient and apply the Euler method step.
-    dxdt = f(X,t)
+    dxdt = f(X,t, params)
     Xnew = X + h*np.array(dxdt)
     
     return Xnew
 
-def RK4_step(X, t, h, f):
+def RK4_step(X, t, h, f, params):
     '''
     Function that carries out one step of the RK4 numerical method.
 
@@ -42,17 +42,17 @@ def RK4_step(X, t, h, f):
                 where f(X,t) = dX/dt
     '''
     # Work out ks
-    k1 = np.array( f( X , t ) )
-    k2 = np.array( f( X+h*(k1/2) , t+(h/2) ) )
-    k3 = np.array( f( X+h*(k2/2) , t+(h/2) ) )
-    k4 = np.array( f( X+h*k3 , t+h ) )
+    k1 = np.array( f( X , t , params) )
+    k2 = np.array( f( X+h*(k1/2) , t+(h/2) , params) )
+    k3 = np.array( f( X+h*(k2/2) , t+(h/2) , params ) )
+    k4 = np.array( f( X+h*k3 , t+h , params ) )
 
     # Work out next X
     Xnew = X + (1/6) * h * (k1 + (2*k2) + (2*k3) + k4)
     
     return Xnew
 
-def midpoint_step(X, t, h, f):
+def midpoint_step(X, t, h, f, params):
     '''
     Function that carries out one step of the midpoint numerical method.
     https://en.wikipedia.org/wiki/Midpoint_method
@@ -68,11 +68,11 @@ def midpoint_step(X, t, h, f):
                 where f(X,t) = dX/dt
     '''
     # calculate Xnew using formula
-    Xnew = X + h*np.array(f(X+(h/2)*np.array(f(X,t)), t+(h/2)))
+    Xnew = X + h*np.array(f(X+(h/2)*np.array(f(X,t)), t+(h/2), params))
     
     return Xnew
 
-def heun3_step(X, t, h, f):
+def heun3_step(X, t, h, f, params):
     '''
     Function that carries out one step of the Heun 3rd order method.
 
@@ -87,16 +87,16 @@ def heun3_step(X, t, h, f):
                 where f(X,t) = dX/dt
     '''
     # calculate Xnew using formula
-    k1 = h*np.array(f(X, t))
-    k2 = h*np.array(f(X+(k1/3), t+(h/3)))
-    k3 = h*np.array(f(X+(2*(k2/3)), t+(2*(h/3))))
+    k1 = h*np.array(f(X, t, params))
+    k2 = h*np.array(f(X+(k1/3), t+(h/3), params))
+    k3 = h*np.array(f(X+(2*(k2/3)), t+(2*(h/3)), params))
 
     Xnew = X + k1/4 + 3*k3/4
     
     return Xnew
 
 
-def solve_to(t0, t1, X0, h_max, f, method):
+def solve_to(t0, t1, X0, h_max, f, method, params):
     '''
     Function that evaluates the solution to the ODE, X1, at time t1 given X0 and t0.
     i.e. the function carries out one iteration of the chosen numerical method.
@@ -124,23 +124,23 @@ def solve_to(t0, t1, X0, h_max, f, method):
             # If applying method with step h_max will make t > t1, use different h,
             # such that the ODE is evaluated at t1 exactly
             if (t0 < t1) and (t0 + h_max > t1):
-                X1 = method(X0, t0, t1-t0, f)
+                X1 = method(X0, t0, t1-t0, f, params)
                 t0 = t1
 
             # Apply method with step of h_max
             else:
-                X1 = method(X0, t0, h_max, f)
+                X1 = method(X0, t0, h_max, f, params)
                 X0 = X1
                 t0 += h_max
 
     # If h < h_max, compute next solution in one step
     else:
-        X1 = method(X0, t0, h, f)
+        X1 = method(X0, t0, h, f, params)
 
     return X1
 
 
-def solve_ode(method, f, t, X0, h_max = 0.1):
+def solve_ode(method, f, t, X0, h_max = 0.1, **params):
     '''
     Function that generates a series of numerical estimates to the ODE provided
 
@@ -175,12 +175,12 @@ def solve_ode(method, f, t, X0, h_max = 0.1):
     for i in range(len(t)-1):
         t0 = t[i]
         t1 = t[i+1]
-        X[i+1] = solve_to(t0, t1, X[i], h_max, f, method_dict[method])
+        X[i+1] = solve_to(t0, t1, X[i], h_max, f, method_dict[method], params)
 
     return X
 
 
-def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true):
+def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true, **params):
     '''
     Function that takes multiple numericcal methods and assessed their speed and
     performance for a desired error tolerance. Produces a plot to show the required
@@ -258,9 +258,13 @@ def main():
     X_true = np.e**(t)
     p.plot_solution(t, X, 't', 'x', 'Solution in Time E', X_true)
 
+    t = np.linspace(0, 100, 1001)
+    X = solve_ode('rk4', predator_prey, t, np.array([1,1]), a=1, b=0.3, d=0.1)
+    p.plot_solution(t, X, 't', 'x and y', 'Predator-Prey Solution')
+
     #p.plot_error(['heun3', 'euler', 'rk4', 'midpoint'], g, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
 
-    evaluate_methods(['euler', 'rk4', 'heun3'], f, 10**-6, 0, 1, np.array([1]), np.e)
+    #evaluate_methods(['euler', 'rk4', 'heun3'], g, 10**-5, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
 
     return 0
 
