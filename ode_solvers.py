@@ -268,7 +268,7 @@ def main():
     p.plot_solution(t, X, 't', 'x', 'Solution in Time E', X_true)
 
     t = np.linspace(0, 100, 1001)
-    X = solve_ode('rk4', predator_prey, t, [1,1], a=1, b=0.3, d=0.1, h_max=0.001)
+    X = solve_ode('rk4', predator_prey, t, [0.5175066,  0.25935986], a=1, b=0.2, d=0.1, h_max=0.001)
     p.plot_solution(t, X, 't', 'x and y', 'Predator-Prey Solution')
 
    # p.plot_error(['heun3', 'euler'], g, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
@@ -277,7 +277,7 @@ def main():
 
     #p.plot_error(['euler', 'rk4'], f2, 0, 1, np.array([1]), np.e, a=1)
 
-    evaluate_methods(['euler', 'rk4'], f, 10**-5, 0, 1, [1], np.e, a=1)
+    #evaluate_methods(['euler', 'rk4'], f, 10**-5, 0, 1, [1], np.e, a=1)
 
     return 0
 
