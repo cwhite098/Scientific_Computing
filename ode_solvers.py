@@ -1,5 +1,5 @@
 from xml.dom.expatbuilder import InternalSubsetExtractor
-from ode import f, g, predator_prey, f2
+from ode import f, g, predator_prey, f2, hopf3D
 import numpy as np
 import sys
 import plots as p
@@ -11,15 +11,25 @@ def euler_step(X, t, h, f, **params):
     '''
     Function that carries out one step of the Euler method.
 
-    ARGS:   X = the value of the ODE's solution at time t.
-            t = time at which to evaluate the gradient.
-            h = the timestep to be carried out.
-            f = the ODE that is being solved.
+    Parameters
+    ----------
+    X : np.array
+        The value of the ODE's solution at time t.
+    t : float
+        Time at which to evaluate the gradient.
+    h : float
+        The timestep to be carried out.
+    f : function
+        The function containing the ODE that is being solved.
+
+    Returns
+    -------    
+    Xnew : np array 
+        The ODE's solution evaluated at t+h.
     
-    RETURNS:    Xnew = the ODE's solution evaluated at t+h.
-    
-    EXAMPLE:    Xnew = euler_step(X=1, t=0, h=0.1, f)
-                where f(X,t) = dX/dt
+    Example
+    -------    
+    Xnew = euler_step(X=1, t=0, h=0.1, f)
     '''
     # Work out the gradient and apply the Euler method step.
     dxdt = f(X,t, params)
@@ -29,17 +39,28 @@ def euler_step(X, t, h, f, **params):
 
 def RK4_step(X, t, h, f, **params):
     '''
-    Function that carries out one step of the RK4 numerical method.
+    Function that carries out one step of the
+    Runge-Kutte 4th order method.
 
-    ARGS:   X = the value of the ODE's solution at time t.
-            t = time at which to evaluate the gradient.
-            h = the timestep to be carried out.
-            f = the ODE that is being solved.
+    Parameters
+    ----------
+    X : np.array
+        The value of the ODE's solution at time t.
+    t : float
+        Time at which to evaluate the gradient.
+    h : float
+        The timestep to be carried out.
+    f : function
+        The function containing the ODE that is being solved.
+
+    Returns
+    -------    
+    Xnew : np array 
+        The ODE's solution evaluated at t+h.
     
-    RETURNS:    Xnew = the ODE's solution evaluated at t+h.
-    
-    EXAMPLE:    Xnew = RK4_step(X=1, t=0, h=0.1, f)
-                where f(X,t) = dX/dt
+    Example
+    ------- 
+    Xnew = RK4_step(X=1, t=0, h=0.1, f)
     '''
     # Work out ks
     k1 = np.array( f( X , t , params) )
@@ -54,37 +75,57 @@ def RK4_step(X, t, h, f, **params):
 
 def midpoint_step(X, t, h, f, **params):
     '''
-    Function that carries out one step of the midpoint numerical method.
-    https://en.wikipedia.org/wiki/Midpoint_method
+    Function that carries out one step of the midpoint method.
 
-    ARGS:   X = the value of the ODE's solution at time t.
-            t = time at which to evaluate the gradient.
-            h = the timestep to be carried out.
-            f = the ODE that is being solved.
+    Parameters
+    ----------
+    X : np.array
+        The value of the ODE's solution at time t.
+    t : float
+        Time at which to evaluate the gradient.
+    h : float
+        The timestep to be carried out.
+    f : function
+        The function containing the ODE that is being solved.
+
+    Returns
+    -------    
+    Xnew : np array 
+        The ODE's solution evaluated at t+h.
     
-    RETURNS:    Xnew = the ODE's solution evaluated at t+h.
-    
-    EXAMPLE:    Xnew = midpoint_step(X=1, t=0, h=0.1, f)
-                where f(X,t) = dX/dt
+    Example
+    -------     
+    Xnew = midpoint_step(X=1, t=0, h=0.1, f)
     '''
     # calculate Xnew using formula
-    Xnew = X + h*np.array(f(X+(h/2)*np.array(f(X,t)), t+(h/2), params))
+    Xnew = X + h*np.array(f(X+(h/2)*np.array(f(X,t, params)), t+(h/2), params))
     
     return Xnew
 
 def heun3_step(X, t, h, f, **params):
     '''
-    Function that carries out one step of the Heun 3rd order method.
+    Function that carries out one step of the
+    Heun 3rd order method.
 
-    ARGS:   X = the value of the ODE's solution at time t.
-            t = time at which to evaluate the gradient.
-            h = the timestep to be carried out.
-            f = the ODE that is being solved.
+    Parameters
+    ----------
+    X : np.array
+        The value of the ODE's solution at time t.
+    t : float
+        Time at which to evaluate the gradient.
+    h : float
+        The timestep to be carried out.
+    f : function
+        The function containing the ODE that is being solved.
+
+    Returns
+    -------    
+    Xnew : np array 
+        The ODE's solution evaluated at t+h.
     
-    RETURNS:    Xnew = the ODE's solution evaluated at t+h.
-    
-    EXAMPLE:    Xnew = heun3_step(X=1, t=0, h=0.1, f)
-                where f(X,t) = dX/dt
+    Example
+    -------     
+    Xnew = heun3_step(X=1, t=0, h=0.1, f)
     '''
     # calculate Xnew using formula
     k1 = h*np.array(f(X, t, params))
@@ -102,18 +143,31 @@ def solve_to(t0, t1, X0, f, method, **params):
     i.e. the function carries out one iteration of the chosen numerical method.
     If the difference between t1 and t0 > h_max, multiple steps are carried out.
 
-    ARGS:   t0 = the intial time.
-            t1 = the time the ODE will be evaulated at.
-            X0 = the value of X at t0.
-            f = the ODE to be solved
-            method = the numerical method to use. (euler_step or RK4_step).
-            **params:   h_max = the maximum step size to use.
-                        any other parameters need to solve the ODE.
+    Parameters
+    ----------
+    t0: float
+        The intial time to start the solution step.
+    t1 : float
+        The time the ODE will be evaulated at.
+    X0 : np.array
+        The value of X at t0.
+    f : function
+        The function containing the ODE to be solved.
+    method : string 
+        The numerical method to use. (euler_step, RK4_step, midpoint_step or heun3_step).
+    **params:
+        h_max : float
+            The maximum step size to use.
+        Any other parameters that need to be passed to the ODE function.
     
-    RETURNS:    X1 = the solution to the ODE evaluated at t1.
+    Returns
+    -------   
+    X1 : np.array 
+        The solution to the ODE evaluated at t1.
     
-    EXAMPLE:    X1 = solve_to(t0=0, t1=0.1, X0=1, f, euler_step, h_max=0.001)
-                where f(X,t) = dX/dt
+    Example 
+    -------   
+    X1 = solve_to(t0=0, t1=0.1, X0=1, f, euler_step, h_max=0.001)
     '''
     try:
         h_max = params['h_max']
@@ -148,19 +202,33 @@ def solve_to(t0, t1, X0, f, method, **params):
 
 def solve_ode(method, f, t, X0, **params):
     '''
-    Function that generates a series of numerical estimates to the ODE provided
+    Function that generates a series of numerical
+    estimates to the solution of the ODE provided.
 
-    ARGS:   method = (string) the numerical method to use. ('euler'/'rk4'/'midpoint'/'heun3')
-            f = the function containing the ODE to be solved.
-            t = the timesteps to evaulate the ODE at.
-            X0 = (list) the initial coniditions of the ODE.
-            **params:   h_max = the maximum step size to use in the solution
-                        any parameters necessary to solve the ODE.
+    Parameters
+    ----------
+    method : string 
+        The numerical method to use. ('euler'/'rk4'/'midpoint'/'heun3')
+    f : function
+        The function containing the ODE to be solved.
+    t : np.array
+        The timesteps to evaulate the ODE at.
+    X0 : np.array
+        The initial coniditions of the ODE.
+    **params:
+        h_max : float 
+            The maximum step size to use in the solution.
+        Any parameters that need to be passed to the function
+        containing the ODE
     
-    RETURNS:    X = list of solutions for every time in t.
+    Returns
+    -------
+    X : np.array
+        List of X values, evaluated at every time in t.
     
-    EXAMPLE:    X = solve_ode(euler_step, f, t=np.linspace(0,1,11), X0=1, h_max=0.1)
-                where f(X,t) = dX/dt
+    Example
+    -------
+    X = solve_ode(euler_step, f, t=np.linspace(0,1,11), X0=1, h_max=0.1)
     '''
     method_dict = { 'euler': euler_step,
                     'rk4': RK4_step,
@@ -195,16 +263,28 @@ def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true, **params):
     performance for a desired error tolerance. Produces a plot to show the required
     step size to reach the desired tolerance.
 
-    ARGS:   methods = list of strings that give the methods to be assessed.
-            f = the ODE to test the methods with.
-            desirerd_tol = the desired tolerance to assess the methods at.
-            t0 = the initial time to assess the ODE solution from.
-            t1 = the end time for the ODE solution, where the error is calculated.
-            X0 = the initial conditions for the ODE.
-            X_true = the true value of X at t1.
-            **params = any parameters that are required to solve the ODE.
+    Parameters
+    ----------
+    methods : list 
+        List of strings that give the methods to be assessed.
+    f : function 
+        The function containing the ODE to test the methods with.
+    desirerd_tol : float
+        The desired tolerance to assess the methods at.
+    t0 : float 
+        The initial time to assess the ODE solution from.
+    t1 : float 
+        The end time for the ODE solution, where the error is calculated.
+    X0 : list
+        The initial conditions for the ODE.
+    X_true : list
+        The true value of X at t1.
+    **params:
+        Any parameters that are required to solve the ODE.
 
-    EXAMPLE: evaluate_methods(['euler', 'rk4'], f, desired_tol = 10**-4, 0, 1, 1, np.e)
+    Example
+    -------
+    evaluate_methods(['euler', 'rk4'], f, desired_tol = 10**-4, 0, 1, 1, np.e)
     '''
     h_line = np.array([desired_tol]*200)
     # Plot the error vs h graph but do not show so more lines can be added.
@@ -252,7 +332,7 @@ def main():
 
     x0_true = np.sin(t)
     x1_true = np.cos(t)
-    X_true = np.array([x0_true, x1_true]).transpose()
+    X_true = [x0_true, x1_true]
 
     p.plot_solution(t, X, 't', 'x0 and x1', 'Solution in Time', X_true)
     p.plot_solution(X[:,0], X[:,1], 'x0', 'x1', 'x1 against x0')
@@ -270,6 +350,9 @@ def main():
     t = np.linspace(0, 20.289717493033194, 1001)
     X = solve_ode('rk4', predator_prey, t, [0.27015621, 0.27015621], a=1, b=0.2, d=0.1, h_max=0.001)
     p.plot_solution(t, X, 't', 'x and y', 'Predator-Prey Solution')
+
+    X = solve_ode('rk4', hopf3D, t, [1,0,1], beta=1, sigma=-1, h_max=0.001)
+    p.plot_solution(t, X, 't', 'u1, u2, u3', 'Hopf3D Solution')
 
    # p.plot_error(['heun3', 'euler'], g, 0, 1, np.array([0,1]), np.array([np.sin(1), np.cos(1)]))
 

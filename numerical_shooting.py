@@ -1,7 +1,7 @@
 from ode_solvers import solve_ode
 import numpy as np
 from scipy.optimize import fsolve
-from ode import predator_prey, f, g
+from ode import predator_prey, f, g, hopf
 import plots as p
 
 
@@ -12,15 +12,25 @@ def root_finding_problem(X0, *data):
     to find a limit cycle of an ODE. This function is to be passed to fsolve or another
     root finding method.
 
-    ARGS:   X0 = a list containing the initial guesses for the initial conditions
-                 of the limit cycle
-            *data = tuple containing (f, phase_condition, **params)
-                    where:  f = the ODE to be solved
-                            phase_condition  = the phase condition for the
-                                               shooting process
-                            **params = any params need to solve f.
+    Parameters
+    ----------
+    X0 : list
+        The the initial guesses for the initial conditions
+        of the limit cycle
+    *data : tuple
+        This contains: 
+            f : function
+                The function containing the ODE to be solved.
+            phase_condition : function
+                The phase condition for the limit cycle.
+            **params:
+                Any params needed to solve the ODE in f.
 
-    EXAMPLE: X0, T = numerical_shooting([1.5,1.5], 10, predator_prey, phase_condition, a=1, b=0.2, d=0.1)
+    Returns
+    -------
+    output : list
+        The current predicted value of the initial conditions and
+        period of the limit cycle.
     '''
 
     # Init Variables
@@ -44,29 +54,35 @@ def root_finding_problem(X0, *data):
     
     return output
 
-
-def pc_predator_prey(X0, **params):
-    # returns dx/dt at t=0
-    return predator_prey(X0, 0, params)[0]
-
-def pc_g(X0, **params):
-    # returns fixes y=1 at t=0
-    return X0[1] -1
-
-
 def numerical_shooting(X0, T_guess, f, phase_condition, **params):
     '''
     Function that finds the period and initial conditions for a limit cycle of an ODE
     by constructing a root finding problem and solving it.
 
-    ARGS:   X0 = the initial guess for the starting point of the limit cycle.
-            T_guess = the initial guess for the period of the limit cycle.
-            f = the ODE the limit cycle will be found for.
-            phase_condition = the function that acts as the final equation in the
-                              root finding problem
-            **params = any params required to solve the ODE.
+    Parameters
+    ----------
+    X0 : list
+        The initial guess for the starting point of the limit cycle.
+    T_guess : float
+        The initial guess for the period of the limit cycle.
+    f : function
+        The function containing the ODE the limit cycle will be found for.
+    phase_condition: function
+        The function that acts as the final equation in the
+        root finding problem.
+    **params: 
+        Any params required to solve the ODE.
 
-    EXAMPLE: X0, T = numerical_shooting([1.5,1.5], 10, predator_prey, phase_condition, a=1, b=0.2, d=0.1)
+    Returns
+    -------
+    X0 : list
+        List containing the initial conditions for the limit cycle.
+    T : float
+        The period of the limit cycle.
+
+    Example
+    -------
+    X0, T = numerical_shooting([1.5,1.5], 10, predator_prey, phase_condition, a=1, b=0.2, d=0.1)
     '''
     # Add T to intial conditions
     X0.append(T_guess)
@@ -87,6 +103,17 @@ def numerical_shooting(X0, T_guess, f, phase_condition, **params):
     return X0, T
 
 
+def pc_predator_prey(X0, **params):
+    # returns dx/dt at t=0
+    return predator_prey(X0, 0, params)[0]
+
+def pc_g(X0, **params):
+    # returns fixes y=1 at t=0
+    return X0[1] -1
+
+def pc_hopf(X0, **params):
+    # returns du1dt at t=0 (to be set =0)
+    return hopf(X0, 0, params)[0]
 
 
 def main():
@@ -108,6 +135,16 @@ def main():
     t = np.linspace(0,T,1000)
     X = solve_ode('rk4', g, t, X0, h_max=0.001)
     p.plot_solution(t, X, 't', 'x and y', 'G Limit Cycle')
+
+    sigma = -1
+    beta = 1
+    t = np.linspace(0,1,101)
+    X0, T = numerical_shooting([1,1], 5, hopf, pc_hopf, beta=beta, sigma=sigma)
+    print(X0)
+    print(T)
+    t = np.linspace(0,T,1000)
+    X = solve_ode('rk4', hopf, t, X0, beta=beta, sigma=sigma, h_max=0.001)
+    p.plot_solution(t, X, 't', 'u1 and u2', 'Hopf Limit Cycle')
 
     return 0
 

@@ -9,14 +9,24 @@ def plot_solution(t, X, xlabel='t', ylabel='x', title='Solution', X_true=None):
     Function that plots the numerical solution to an ODE as well as the true solution
     if required.
 
-    ARGS:   t = the time over the ODE has been solved.
-            X = the numerical solution at each t_i in t.
-            xlabel = the label for the x-axis (string)
-            ylabel = the label for the y-axis (string)
-            title = the title for the plot (string)
-            X_true = the true solution at each t_i in t.
+    Parameters
+    ----------
+    t : np.array
+        The time over the ODE has been solved.
+    X : np.array 
+        The numerical solution at each t_i in t.
+    xlabel : string 
+        The label for the x-axis.
+    ylabel : string
+        The label for the y-axis.
+    title : string 
+        The title for the plot.
+    X_true : List 
+        The true solution at each t_i in t.
     
-    EXAMPLE:    plot_solution(t=linspace(0,1,11), X, X_true)
+    Example
+    -------    
+    plot_solution(t=linspace(0,1,11), X, X_true)
     '''
 
     # Check to see how many variables are to be plotted
@@ -24,6 +34,7 @@ def plot_solution(t, X, xlabel='t', ylabel='x', title='Solution', X_true=None):
         number_of_vars = X.shape[1]
         # If true solution is provided plot both X and X_true
         if X_true is not None:
+            X_true = np.array(X_true).transpose()
             for i in range(number_of_vars):
                 plt.plot(t, X_true[:,i], label='True Solution, x'+str(i))
                 plt.plot(t, X[:,i], label='Approx Solution, x'+str(i))
@@ -37,6 +48,7 @@ def plot_solution(t, X, xlabel='t', ylabel='x', title='Solution', X_true=None):
         number_of_vars = 1
         # If true solution is provided plot both X and X_true
         if X_true is not None:
+            X_true = np.array(X_true).transpose()
             plt.plot(t, X_true[:], label='True Solution')
             plt.plot(t, X[:], label='Approx Solution')
 
@@ -55,18 +67,33 @@ def plot_error(methods, f, t0, t1, X0, X1_true,  **params):
     Function that works out the global error for multiple numerical methods used to solve ODEs
     and plots the error against the step size on a loglog graph.
 
-    ARGS:   method = list of methods to plot on the loglog plot.
-            f = the function of the ODE that is to be evaluated.
-            t0 = the initial time for the solution.
-            t1 = the final time of the solution, this is where the error is calculated.
-            X0 = (list) the initial conditions of the ODE.
-            X1_true = the true value of the ODE's solution at t=t1.
-            **params:   show_plot = bool that controls whether the plot is shown or not.
-                        any parameters necessary for the ODE being solved
+    Parameters
+    ----------
+    method : list
+        List of methods to plot on the loglog plot.
+    f : function
+        The function containg the ODE that is to be evaluated.
+    t0 : float
+        The initial time for the solution.
+    t1 : float
+        The final time of the solution, this is where the error is calculated.
+    X0 : list 
+        The initial conditions of the ODE.
+    X1_true : list
+        The true value of the ODE's solution at t=t1.
+    **params:   
+        show_plot : bool 
+            Boolean that controls whether the plot is shown or not.
+        Any parameters necessary for the ODE being solved.
 
-    RETURNS:    method_errors = the errors at t1 of all the methods for differnt hs
+    Returns
+    -------
+    method_errors : nested list
+        The errors at t1 of all the methods for differnt h values.
 
-    EXAMPLE:    plot_error(['rk4', 'euler'], f, t0=0, t1=1, X0=1, X1_true=np.e)
+    Example
+    -------
+    plot_error(['rk4', 'euler'], f, t0=0, t1=1, X0=1, X1_true=np.e)
     '''
     # Organise parameters
     try: 
@@ -76,6 +103,8 @@ def plot_error(methods, f, t0, t1, X0, X1_true,  **params):
 
     # Init output list
     method_errors = []
+
+    X1_true = np.array(X1_true).transpose()
     
     # Loop through the requested methods
     for method in methods:
