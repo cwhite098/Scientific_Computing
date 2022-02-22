@@ -3,6 +3,9 @@ import numpy as np
 from ode_solvers import solve_ode
 from numerical_shooting import numerical_shooting
 from ode import *
+import warnings
+warnings.filterwarnings('ignore', 'The iteration is not making good progress')
+
 
 class TestODESolvers(unittest.TestCase):
 
@@ -65,7 +68,18 @@ class TestODESolvers(unittest.TestCase):
         # Compare numerical and analytic solutions within some tolerance
         self.assertTrue(error[0] < 10**-8 and error[1] < 10**-8)
 
-
+    # Maybe add a dim3 ODE
+    # Tests for plots ??
+    def test_wrong_dims(self):
+        test_bool= False
+        t = np.linspace(0,1,101)
+        X0 = [0]
+        # Checks if solve_ode handles wrong dimensions gracefully
+        try:
+            X = solve_ode('rk4', g, t, X0)
+        except ValueError:
+            test_bool=True
+        assert(test_bool)
 
 class TestNumericalShooting(unittest.TestCase):
     
@@ -80,16 +94,25 @@ class TestNumericalShooting(unittest.TestCase):
 
         # Carry out shooting and assess result
         X0, T = numerical_shooting([1,1], 5, hopf, pc_hopf, beta=beta, sigma=sigma)
-        t = np.linspace(0,T,100)
         X = [np.sqrt(beta)*np.cos(T), np.sqrt(beta)*np.sin(T)]
 
         # Calc error and test
         error = np.abs(X0 - X)
         self.assertTrue(error[0] < 10**-5 and error[1] < 10**-5)
 
+    # Test for dim3 / dim1 limit cycle finding
+    # Tests for graceful error handling ??
+    def test_not_converging(self):
 
+        test_bool = False
+        def pc_predator_prey(X0, **params):
+            # returns dx/dt at t=0
+            return predator_prey(X0, 0, params)[0]
+        # Tests gracefulness of non-convergence
 
+        X0= numerical_shooting([1.3, -1.3], 100, predator_prey, pc_predator_prey, a=1, b=0.2, d=0.1)
 
+        assert(X0==[])
 
 
 if __name__ == '__main__':

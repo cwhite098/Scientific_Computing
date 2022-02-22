@@ -108,6 +108,11 @@ def numerical_shooting(X0, T_guess, f, phase_condition, **params):
     # Solve for the limit cycle using fsolve
     sol = fsolve(root_finding_problem, X0, args=data)
 
+    # Check for convergence
+    if sol[:-1].all() == np.array(X0).all() and sol[-1] == T_guess:
+        print('Root Finder Failed, returning empty array...')
+        return []
+
     # Split back into ICs and T
     X0 = sol[:-1]
     T = sol[-1]
@@ -130,7 +135,7 @@ def pc_hopf(X0, **params):
 
 def main():
     a=1
-    X0, T = numerical_shooting([1.3, 1.3], 23, predator_prey, pc_predator_prey, a=1, b=0.2, d=0.1)
+    X0, T = numerical_shooting([1.3, 1.3], 10, predator_prey, pc_predator_prey, a=1, b=0.2, d=0.1)
     print(X0)
     print(T)
 
