@@ -235,6 +235,18 @@ def solve_ode(method, f, t, X0, **params):
                     'midpoint': midpoint_step,
                     'heun3': heun3_step}
 
+    # Check for correct inputs
+    if not callable(f):
+        raise TypeError('f must be a function!')
+    try:
+        X = f(X0, t, params)
+    except IndexError:
+        raise ValueError('Dimensions of Initial Conditions do not match ODE!')
+    try:
+        method = method_dict[method]
+    except KeyError:
+        raise KeyError('Specified incorrect solver!')
+    
     # Make the initial conditions and n array
     X0 = np.array(X0)
 
@@ -252,7 +264,7 @@ def solve_ode(method, f, t, X0, **params):
     for i in range(len(t)-1):
         t0 = t[i]
         t1 = t[i+1]
-        X[i+1] = solve_to(t0, t1, X[i], f, method_dict[method], **params)
+        X[i+1] = solve_to(t0, t1, X[i], f, method, **params)
 
     return X
 
@@ -328,7 +340,7 @@ def main():
 
     t = np.linspace(0,6,61)
     X0 = [0,1]
-    X = solve_ode('heun3', g, t, X0)
+    X = solve_ode('heun3', g,t, X0)
 
     x0_true = np.sin(t)
     x1_true = np.cos(t)

@@ -84,6 +84,18 @@ def numerical_shooting(X0, T_guess, f, phase_condition, **params):
     -------
     X0, T = numerical_shooting([1.5,1.5], 10, predator_prey, phase_condition, a=1, b=0.2, d=0.1)
     '''
+
+    # Check for correct inputs
+    if not callable(f):
+        raise TypeError('f must be a function!')
+    if not callable(phase_condition):
+        raise TypeError('phase_condition must be a function!')
+    try:
+        X = f(X0, 0, params)
+    except IndexError:
+        raise ValueError('Dimensions of Initial Conditions do not match ODE!')
+
+
     # Add T to intial conditions
     X0.append(T_guess)
 
@@ -117,8 +129,8 @@ def pc_hopf(X0, **params):
 
 
 def main():
-
-    X0, T = numerical_shooting([1.3,1.3], 23, predator_prey, pc_predator_prey, a=1, b=0.2, d=0.1)
+    a=1
+    X0, T = numerical_shooting([1.3, 1.3], 23, predator_prey, pc_predator_prey, a=1, b=0.2, d=0.1)
     print(X0)
     print(T)
 
