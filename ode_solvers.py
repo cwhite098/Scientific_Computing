@@ -1,5 +1,5 @@
 from xml.dom.expatbuilder import InternalSubsetExtractor
-from ode import f, g, predator_prey, f2, hopf3D
+from ode import f, g, predator_prey, f2, hopf3D, modified_hopf
 import numpy as np
 import sys
 import plots as p
@@ -362,6 +362,10 @@ def main():
     t = np.linspace(0, 20.289717493033194, 1001)
     X = solve_ode('rk4', predator_prey, t, [0.27015621, 0.27015621], a=1, b=0.2, d=0.1, h_max=0.001)
     p.plot_solution(t, X, 't', 'x and y', 'Predator-Prey Solution')
+
+    t = np.linspace(0, 20, 1001)
+    X = solve_ode('rk4', modified_hopf, t, [1,1], beta=2)
+    p.plot_solution(t, X, 't', 'x and y', 'Modified Hopf Solution')
 
     X = solve_ode('rk4', hopf3D, t, [1,0,1], beta=1, sigma=-1, h_max=0.001)
     p.plot_solution(t, X, 't', 'u1, u2, u3', 'Hopf3D Solution')

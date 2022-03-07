@@ -50,6 +50,21 @@ def hopf(X, t, params):
     return X
 
 
+def modified_hopf(X, t, params):
+
+    beta = params['beta']
+
+    u1 = X[0]
+    u2 = X[1]
+
+    du1dt = beta*u1 - u2 + u1*(u1**2 + u2**2) - u1*(u1**2 + u2**2)**2
+    du2dt = u1 + beta*u2 + u2*(u1**2 + u2**2) - u2*(u1**2 + u2**2)**2
+
+    X = [du1dt, du2dt]
+
+    return X
+
+
 def hopf3D(X, t, params):
 
     beta = params['beta']
