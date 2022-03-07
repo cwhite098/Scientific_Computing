@@ -79,6 +79,9 @@ def numerical_shooting(X0, T_guess, f, phase_condition, **params):
         List containing the initial conditions for the limit cycle.
     T : float
         The period of the limit cycle.
+        
+    If the root finding process does not converge, an empty array is
+    returned.
 
     Example
     -------
