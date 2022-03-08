@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 from ode import hopf, modified_hopf
-from numerical_shooting import numerical_shooting
+from numerical_shooting import numerical_shooting, root_finding_problem
 
 
 def cubic(x,params):
@@ -120,8 +120,10 @@ def root_finding(x, discretisation, function, u1, u2, p1, p2, param_to_vary, pha
     p0 = x[-1]
     params[param_to_vary] = p0
     if discretisation == numerical_shooting:
-        X0, T = numerical_shooting(u0, T_guess, function, phase_condition, **params)
-        d = X0
+        U0 = np.append(u0, T_guess)
+        d = root_finding_problem(list(U0), function, phase_condition, params)
+        d = d[:-1]
+        T_guess = d[-1]
     else:
         d = discretisation(function(u0, params))
 
@@ -134,49 +136,51 @@ def root_finding(x, discretisation, function, u1, u2, p1, p2, param_to_vary, pha
 
 
 
-def pseudo_arclength_contuation(initial_u, param_to_vary, param_range, no_param_values, function, discretisation=lambda x:x,
+def pseudo_arclength_continuation(initial_u, param_to_vary, param_range, no_param_values, function, discretisation=lambda x:x,
                                     solver='fsolve', phase_condition = None, T_guess = 5, **params):
 
     # Form param list and retrieve first 2 entries to begin continuation
     param_list = np.linspace(param_range[0], param_range[1], no_param_values)
     param_list = list(param_list[:2])
-    sols = []
+    sols = [initial_u]
+    counter=0
 
-    if discretisation == numerical_shooting:
-        i=1
-
-    # If not an ODE requiring shooting.
-    else:
-        while param_list[-1] <= 2:
-            if len(sols)==0:
-                param1 = param_list[-2]
+    # Figure out this bool thing
+    while counter <= no_param_values:
+        counter+=1
+        if len(sols)==1:
+            for i in range(2):
+                param1 = param_list[-2+i]
                 params[param_to_vary] = param1
-                u1 = fsolve(discretisation(function), initial_u, args=params)
+                if discretisation == numerical_shooting:
+                    X0, T = numerical_shooting(sols[-1].copy(), T_guess, function, phase_condition, **params)
+                    u1 = list(X0)
+                else:
+                    u1 = fsolve(discretisation(function), initial_u, args=params)
                 sols.append(list(u1))
-
-                param2 = param_list[-1]
-                params[param_to_vary] = param2
-                u2 = fsolve(discretisation(function), sols[-1], args=params)
-                sols.append(list(u2))
-            else:
-                u1 = np.array(sols[-2])
-                u2 = np.array(sols[-1])
-                param1 = param_list[-2]
-                param2 = param_list[-1]
-
-            
-
-            pred = np.append(u2 + (u2 - u1), param2 + (param2 - param1))
-
-            x = fsolve(root_finding, np.array(pred),
-                        args = (discretisation, function, u1, u2, param1, param2, param_to_vary, phase_condition, T_guess, params))
-
-            
-            sols.append(list(x[:-1]))
-            param_list.append(x[-1])
+            u1 = np.array(sols[-2])
+            u2 = np.array(sols[-1])
+            param1 = param_list[-2]
+            param2 = param_list[-1]
+        else:
+            u1 = np.array(sols[-2])
+            u2 = np.array(sols[-1])
+            param1 = param_list[-2]
+            param2 = param_list[-1]
 
         
-    return np.array(sols), param_list
+
+        pred = np.append(u2 + (u2 - u1), param2 + (param2 - param1))
+
+        x = fsolve(root_finding, np.array(pred),
+                    args = (discretisation, function, u1, u2, param1, param2, param_to_vary, phase_condition, T_guess, params))
+
+        
+        sols.append(list(x[:-1]))
+        param_list.append(x[-1])
+
+        
+    return np.array(sols[1:]), param_list
 
 
 def main():
@@ -186,7 +190,7 @@ def main():
     plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Natural Param Continuation')
     plt.draw()
 
-    u, p = pseudo_arclength_contuation(1, 'c', [-2,2], 50, cubic, c=-2)
+    u, p = pseudo_arclength_continuation(1, 'c', [-2,2], 50, cubic, c=-2)
     plt.plot(p,u)
     plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Pseudo-Arclength Continuation')
     plt.show()
@@ -203,6 +207,12 @@ def main():
     u, p = natural_param_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, beta=-1, sigma=-1)
     plt.plot(p,u[:,0])
     plt.show()
+
+    u, p = pseudo_arclength_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, T_guess=6, beta=-1, sigma=-1)
+    plt.plot(p,u[:,0])
+    plt.show()
+
+
 
     u, p = natural_param_continuation([1,1], 'beta', [2,-1], 20, modified_hopf, numerical_shooting, phase_condition=pc_modified_hopf, T_guess=6, beta=-1)
     plt.plot(p,u[:,0])
