@@ -67,7 +67,7 @@ def numerical_shooting(X0, T_guess, f, phase_condition, **params):
         The initial guess for the period of the limit cycle.
     f : function
         The function containing the ODE the limit cycle will be found for.
-    phase_condition: function
+    phase_condition : function
         The function that acts as the final equation in the
         root finding problem.
     **params: 
