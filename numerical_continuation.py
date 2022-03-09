@@ -107,29 +107,33 @@ def natural_param_continuation(initial_u, param_to_vary, param_range, no_param_v
 
 def get_arc(u3, u2, u1, param3, param2, param1):
 
-    pred = [u2 + (u2 - u1), param2 + (param2 - param1)]
-    secant = [(u2-u1), (param2-param1)]
+    # Why is pred == target????????
+    pred = np.append(u2 + (u2 - u1), param2 + (param2 - param1))
+    target = np.append(u3, param3)
+    # Direction of natural continuation
+    secant = np.append((u2-u1), (param2-param1))
 
-    arc = np.dot(u3 - pred[0], secant[0]) + np.dot(param3 - pred[1], secant[1])
+    arc = np.dot(target - pred, secant)
 
     return arc
         
 def root_finding(x, discretisation, function, u1, u2, p1, p2, param_to_vary, phase_condition, T_guess,  params):
     
+    # Predictions (natural cont.)
     u0 = x[:-1]
     p0 = x[-1]
     params[param_to_vary] = p0
     if discretisation == numerical_shooting:
-        U0 = np.append(u0, T_guess)
-        d = root_finding_problem(list(U0), function, phase_condition, params)
-        d = d[:-1]
-        T_guess = d[-1]
+        d = root_finding_problem(list(u0), function, phase_condition, params)
+        #d = d[:-1]
+
+        arc = get_arc(u0, u2, u1, p0, p2, p1)
+        root = np.append(d, arc)
+        
     else:
         d = discretisation(function(u0, params))
-
-    arc = get_arc(u0, u2, u1, p0, p2, p1)
-
-    root = np.append(d, arc)
+        arc = get_arc(u0, u2, u1, p0, p2, p1)
+        root = np.append(d, arc)
     
     return root
 
@@ -143,18 +147,20 @@ def pseudo_arclength_continuation(initial_u, param_to_vary, param_range, no_para
     param_list = np.linspace(param_range[0], param_range[1], no_param_values)
     param_list = list(param_list[:2])
     sols = [initial_u]
+    Ts = [T_guess]
     counter=0
 
     # Figure out this bool thing
-    while counter <= no_param_values:
+    while np.min(param_range) <= param_list[-1] and param_list[-1] <= np.max(param_range):
         counter+=1
         if len(sols)==1:
             for i in range(2):
                 param1 = param_list[-2+i]
                 params[param_to_vary] = param1
                 if discretisation == numerical_shooting:
-                    X0, T = numerical_shooting(sols[-1].copy(), T_guess, function, phase_condition, **params)
+                    X0, T = numerical_shooting(sols[-1].copy(), Ts[-1], function, phase_condition, **params)
                     u1 = list(X0)
+                    Ts.append(T)
                 else:
                     u1 = fsolve(discretisation(function), initial_u, args=params)
                 sols.append(list(u1))
@@ -169,16 +175,19 @@ def pseudo_arclength_continuation(initial_u, param_to_vary, param_range, no_para
             param2 = param_list[-1]
 
         
-
-        pred = np.append(u2 + (u2 - u1), param2 + (param2 - param1))
+        if discretisation == numerical_shooting:
+            u1 = np.append(u1, Ts[-2])
+            u2 = np.append(u2, Ts[-1])
+            pred = np.append(u2 + (u2 - u1), param2+(param2-param1))
+            
+        else:
+            pred = np.append(u2 + (u2 - u1),param2+(param2-param1))
 
         x = fsolve(root_finding, np.array(pred),
                     args = (discretisation, function, u1, u2, param1, param2, param_to_vary, phase_condition, T_guess, params))
 
-        
-        sols.append(list(x[:-1]))
+        sols.append(list(x[:len(initial_u)]))
         param_list.append(x[-1])
-
         
     return np.array(sols[1:]), param_list
 
@@ -190,7 +199,7 @@ def main():
     plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Natural Param Continuation')
     plt.draw()
 
-    u, p = pseudo_arclength_continuation(1, 'c', [-2,2], 50, cubic, c=-2)
+    u, p = pseudo_arclength_continuation([1], 'c', [-2,2], 50, cubic, c=-2)
     plt.plot(p,u)
     plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Pseudo-Arclength Continuation')
     plt.show()
@@ -206,6 +215,11 @@ def main():
     # Testing continuation with the hopf normal form
     u, p = natural_param_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, beta=-1, sigma=-1)
     plt.plot(p,u[:,0])
+    plt.show()
+
+
+    u, p = pseudo_arclength_continuation([1,1], 'beta', [2,-1], 100, modified_hopf, numerical_shooting, phase_condition=pc_modified_hopf, T_guess=6, beta=2)
+    plt.plot(p,u[:,0], 'o')
     plt.show()
 
     u, p = pseudo_arclength_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, T_guess=6, beta=-1, sigma=-1)
