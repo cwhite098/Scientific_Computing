@@ -4,12 +4,6 @@ import matplotlib.pyplot as plt
 from ode import hopf, modified_hopf
 from numerical_shooting import numerical_shooting, root_finding_problem
 
-
-def cubic(x,params):
-    c = params['c']
-    return x**3 - x + c
-
-
 def natural_param_continuation(initial_u, param_to_vary, param_range, no_param_values, function, discretisation=lambda x:x,
                                     solver='fsolve', phase_condition = None, T_guess = 5, **params):
     '''
@@ -323,46 +317,48 @@ def pseudo_arclength_continuation(initial_u, param_to_vary, param_range, no_para
 
 
 def main():
-    # Testing continuation with the cubic equation
-    u, p  = natural_param_continuation(1, 'c', [-2,2], 20, cubic, c=-2)
-    plt.plot(p,u)
-    plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Natural Param Continuation')
-    plt.draw()
 
-    u, p = pseudo_arclength_continuation([1], 'c', [-2,2], 50, cubic, c=-2)
-    plt.plot(p,u)
-    plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Pseudo-Arclength Continuation')
-    plt.show()
+    # Function containing cubic equation parameterised by c
+    def cubic(x,params):
+        c = params['c']
+        return x**3 - x + c
 
+    # Phase condition for hopf normal form
     def pc_hopf(X0, **params):
         # returns du1dt at t=0 (to be set =0)
         return hopf(X0, 0, params)[0]
 
+    # Phase condition for modified hopf
     def pc_modified_hopf(X0, **params):
         # returns du1dt at t=0 (to be set =0)
         return modified_hopf(X0, 0, params)[0]
 
+
+    # Testing continuation with the cubic equation
+    u, p  = natural_param_continuation(1, 'c', [-2,2], 20, cubic, c=-2)
+    plt.plot(p,u, label='Natural')
+    u, p = pseudo_arclength_continuation([1], 'c', [-2,2], 50, cubic, c=-2)
+    plt.plot(p,u,label='Pseudo-Arclength')
+    plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Pseudo-Arclength Continuation')
+    plt.show()
+
     # Testing continuation with the hopf normal form
     u, p = natural_param_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, beta=-1, sigma=-1)
-    plt.plot(p,u[:,0])
-    plt.show()
-
-
-    u, p = pseudo_arclength_continuation([1,1], 'beta', [2,-1], 100, modified_hopf, numerical_shooting, phase_condition=pc_modified_hopf, T_guess=6, beta=2)
-    plt.plot(p,u[:,0], 'o')
-    plt.show()
-
+    plt.plot(p,u[:,0], label='Natural')
     u, p = pseudo_arclength_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, T_guess=6, beta=-1, sigma=-1)
-    plt.plot(p,u[:,0])
+    plt.plot(p,u[:,0], label='Pseudo-Arclength')
+    plt.xlabel('Beta'), plt.ylabel('u'), plt.title('Continuation with Hopf'), plt.legend()
     plt.show()
 
+    # Testing continuation with modified hopf normal form
     u, p = natural_param_continuation([1,1], 'beta', [2,-1], 20, modified_hopf, numerical_shooting, phase_condition=pc_modified_hopf, T_guess=6, beta=-1)
-    plt.plot(p,u[:,0])
+    plt.plot(p,u[:,0], label='Natural')
+    u, p = pseudo_arclength_continuation([1,1], 'beta', [2,-1], 100, modified_hopf, numerical_shooting, phase_condition=pc_modified_hopf, T_guess=6, beta=2)
+    plt.plot(p,u[:,0], label='Pseudo-Arclength')
+    plt.xlabel('Beta'), plt.ylabel('u'), plt.title('Continuation with Modified Hopf'), plt.legend()
     plt.show()
 
     return 0
-
-
 
 
 if __name__ == '__main__':
