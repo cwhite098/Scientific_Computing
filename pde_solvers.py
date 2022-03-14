@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from math import pi
@@ -44,8 +45,38 @@ def tridiag(a, b, c, k1=-1, k2=0, k3=1):
 
 def forward_euler_pde(L, T, mx, mt, kappa):
     '''
+    Function that carries out a vectorised forward Euler numerical PDE solver. It is constructed to solve
+    the 1 sptaial dimension, homogenous diffusion equation with Dirichlet boundary conditions
+
+    Parameters
+    ----------
+    L : float
+        The length of the spatial domain.
     
+    T : float
+        The maximum time to solve to PDE to.
+
+    mx : int
+        The resolution in the spatial dimension to use for the solution.
+
+    mt : int
+        The resolution in the time dimension to use for the solution.
+
+    kappa : float
+        The diffusion parameter for the PDE.
+
+    Returns
+    -------
+    u : np.array
+        A numpy array containing the solution u for all x and t. The rows hold the spatial
+        dimension and the columns hold the time dimension.
     
+    t : np.array
+        A 1D numpy array containing the values of t that correspond to the columns in u.
+
+    Example
+    -------
+    u,t = forward_euler_pde(L=1, T=0.5, mx=10, mt=100, kappa=1)
     '''
 
     # Set up the numerical environment variables
@@ -57,6 +88,12 @@ def forward_euler_pde(L, T, mx, mt, kappa):
     print("deltax=",deltax)
     print("deltat=",deltat)
     print("lambda=",lmbda)
+
+    # Checks if solver will be stable with this lambda value
+    if lmbda >0.5:
+        raise ValueError('Lambda greater than 0.5! Consider reducing mx.')
+    if lmbda < 0:
+        raise ValueError('Lambda less than 0! Wrong args.')
 
     u = np.zeros((x.size, t.size))
 
@@ -73,8 +110,6 @@ def forward_euler_pde(L, T, mx, mt, kappa):
     b = np.array([1-2*lmbda]*(x.size))
     A_FE = tridiag(a,b,a,-1,0,1)
 
-    print(A_FE)
-
     for j in range(0, mt):
         u[:,j+1] = np.matmul(u[:,j], A_FE)
         
@@ -88,7 +123,6 @@ def forward_euler_pde(L, T, mx, mt, kappa):
 
 def main():
 
-
     # Set problem parameters/functions
     kappa = 1.0   # diffusion constant
     L=1      # length of spatial domain
@@ -98,14 +132,16 @@ def main():
     mx = 10     # number of gridpoints in space
     mt = 1000   # number of gridpoints in time
 
+    # Get numerical solution
     u,t = forward_euler_pde(L, T, mx, mt, kappa)
 
+    # Plot solution in space and time
     plt.imshow(u, aspect='auto')
     plt.show()
 
+    # Plot x at time T from the exact solution and numerical method.
     xx = np.linspace(0,L,mx+1)
     exact_sol = u_exact(xx, T, kappa, L)
-
     print(exact_sol)
     plt.plot(xx, u[:,-1], 'o', c='r')
     plt.plot(xx, exact_sol, 'b-', label='exact')
