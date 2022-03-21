@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from math import pi
 from scipy.sparse import diags
+from scipy.sparse.linalg import spsolve
 
 def u_I(x, L):
         # initial temperature distribution
@@ -47,6 +48,18 @@ def tridiag(a, b, c, k1=-1, k2=0, k3=1):
 def forward_euler_step(u, A, j):
 
     u[:,j+1] = A.dot(u[:,j])
+
+    return u
+
+def backward_euler_step(u, A, j):
+
+    u[:,j+1] = spsolve(A, u[:,j])
+
+    return u
+
+def crank_nicholson_step(u, A, B, j):
+
+    u[:,j+1] = spsolve(A, B.dot(u[:,j]))
 
     return u
 
@@ -115,13 +128,25 @@ def solve_pde(L, T, mx, mt, kappa, solver):
         # Construct tri-diagonal matrix using lambda
         a = np.array([lmbda]*(x.size-3))
         b = np.array([1-2*lmbda]*(x.size-2))
-        A = diags((a,b,a),(-1,0,1))
+        A = diags((a,b,a), (-1,0,1), format='csr')
 
     elif solver == 'beuler':
         solver = backward_euler_step
+        # Construct tri-diag matrix for the numerical scheme
+        a = np.array([-lmbda]*(x.size-3))
+        b = np.array([1+2*lmbda]*(x.size-2))
+        A = diags((a,b,a), (-1,0,1), format='csr')
 
     elif solver == 'cn':
         solver = crank_nicholson_step
+        # Construct the 2 tri-diags needed for the CN scheme
+        a = np.array([-(lmbda/2)]*(x.size-3))
+        b = np.array([1+lmbda]*(x.size-2))
+        A = diags((a,b,a), (-1,0,1), format='csr')
+
+        a = np.array([lmbda/2]*(x.size-3))
+        b = np.array([1-lmbda]*(x.size-2))
+        B = diags((a,b,a), (-1,0,1), format='csr')
 
     else:
         raise ValueError('Solver specified does not exist!')
@@ -144,7 +169,10 @@ def solve_pde(L, T, mx, mt, kappa, solver):
         u[-1,j+1]=0
         
         # Carry out solver step, excluding the boundaries
-        solver(u[1:-1], A, j)
+        if not solver == crank_nicholson_step:
+            solver(u[1:-1], A, j)
+        else:
+            solver(u[1:-1], A, B, j)
         
         
 
@@ -155,16 +183,16 @@ def solve_pde(L, T, mx, mt, kappa, solver):
 def main():
 
     # Set problem parameters/functions
-    kappa = 1.0   # diffusion constant
+    kappa = 0.1   # diffusion constant
     L=1      # length of spatial domain
     T=0.5       # total time to solve for
 
     # Set numerical parameters
-    mx = 10     # number of gridpoints in space
+    mx = 100     # number of gridpoints in space
     mt = 1000   # number of gridpoints in time
 
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, solver='cn')
 
     # Plot solution in space and time
     plt.imshow(u, aspect='auto')
