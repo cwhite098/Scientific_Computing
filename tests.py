@@ -3,8 +3,7 @@ import numpy as np
 from ode_solvers import solve_ode
 from numerical_shooting import numerical_shooting
 from ode import *
-import warnings
-warnings.filterwarnings('ignore', 'The iteration is not making good progress')
+from pde_solvers import *
 
 
 class TestODESolvers(unittest.TestCase):
@@ -68,8 +67,6 @@ class TestODESolvers(unittest.TestCase):
         # Compare numerical and analytic solutions within some tolerance
         self.assertTrue(error[0] < 10**-8 and error[1] < 10**-8)
 
-    # Maybe add a dim3 ODE
-    # Tests for plots ??
     def test_wrong_dims(self):
         test_bool= False
         t = np.linspace(0,1,101)
@@ -100,8 +97,6 @@ class TestNumericalShooting(unittest.TestCase):
         error = np.abs(X0 - X)
         self.assertTrue(error[0] < 10**-5 and error[1] < 10**-5)
 
-    # Test for dim3 / dim1 limit cycle finding
-    # Tests for graceful error handling ??
     def test_not_converging(self):
 
         test_bool = False
@@ -109,10 +104,51 @@ class TestNumericalShooting(unittest.TestCase):
             # returns dx/dt at t=0
             return predator_prey(X0, 0, params)[0]
         # Tests gracefulness of non-convergence
-
         X0= numerical_shooting([1.3, -1.3], 100, predator_prey, pc_predator_prey, a=1, b=0.2, d=0.1)
-
         assert(X0==[])
+
+
+class TestPDESolvers(unittest.TestCase):
+
+    def setUp(self):
+
+        def u_I(x, L):
+            # initial temperature distribution
+            y = (np.sin(pi*x/L))
+            return y
+
+        def u_exact(x,t, kappa, L):
+            # the exact solution
+            y = np.exp(-kappa*(pi**2/L**2)*t)*np.sin(pi*x/L)
+            return y
+
+        # Set problem parameters/functions
+        self.kappa = 0.1   # diffusion constant
+        self.L=1      # length of spatial domain
+        self.T=0.5       # total time to solve for
+
+        # Set numerical parameters
+        self.mx = 100     # number of gridpoints in space
+        self.mt = 1000   # number of gridpoints in time
+
+        # Get exact solution
+        xx = np.linspace(0,self.L,self.mx+1)
+        self.exact_sol = u_exact(xx, self.T, self.kappa, self.L)
+
+    def test_method_forward_euler(self):
+        # Get numerical solution
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, solver='feuler')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol).all() < 10**-4)
+
+    def test_method_backward_euler(self):
+        # Get numerical solution
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, solver='beuler')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol).all() < 10**-4)
+
+    def test_method_crank_nicholson(self):
+        # Get numerical solution
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, solver='cn')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol).all() < 10**-4)
 
 
 if __name__ == '__main__':

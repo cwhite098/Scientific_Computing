@@ -46,23 +46,84 @@ def tridiag(a, b, c, k1=-1, k2=0, k3=1):
 
 
 def forward_euler_step(u, A, j):
+    '''
+    Function that carries out one step of the forward Euler numerical method for approximating
+    PDEs.
 
+    Parameters
+    ----------
+    u : np.array
+        A numpy array containing the solution of the PDE, excluding the boundaries.
+
+    A : scipy sparse matrix
+        A scipy sparse matrix that is used to calculate the next time step of the solution.
+
+    j : int
+        The time at which the forward Euler step is applied.
+
+    Returns
+    -------
+    u : np.array
+        The updated solution matrix.
+    '''
     u[:,j+1] = A.dot(u[:,j])
 
     return u
 
 def backward_euler_step(u, A, j):
+    '''
+    Function that carries out one step of the backward Euler numerical method for approximating
+    PDEs.
+
+    Parameters
+    ----------
+    u : np.array
+        A numpy array containing the solution of the PDE, excluding the boundaries.
+
+    A : scipy sparse matrix
+        A scipy sparse matrix that is used to calculate the next time step of the solution.
+
+    j : int
+        The time at which the forward Euler step is applied.
+
+    Returns
+    -------
+    u : np.array
+        The updated solution matrix.
+    '''
 
     u[:,j+1] = spsolve(A, u[:,j])
 
     return u
 
 def crank_nicholson_step(u, A, B, j):
+    '''
+    Function that carries out one step of the fcrank-nicholson method for approximating
+    PDEs.
+
+    Parameters
+    ----------
+    u : np.array
+        A numpy array containing the solution of the PDE, excluding the boundaries.
+
+    A : scipy sparse matrix
+        A scipy sparse matrix (tri-diagonal) that is used to calculate the next time step of the solution.
+
+    B : scipy sparse matrix
+        A scipy sparse matrix (tri-diagonal) that is used to multiply the previous step of the solution.
+
+    j : int
+        The time at which the forward Euler step is applied.
+
+    Returns
+    -------
+    u : np.array
+        The updated solution matrix.
+    '''
 
     u[:,j+1] = spsolve(A, B.dot(u[:,j]))
 
     return u
-
 
 
 
@@ -113,9 +174,6 @@ def solve_pde(L, T, mx, mt, kappa, solver):
     deltax = x[1] - x[0]            # gridspacing in x
     deltat = t[1] - t[0]            # gridspacing in t
     lmbda = kappa*deltat/(deltax**2)    # mesh fourier number
-    print("deltax=",deltax)
-    print("deltat=",deltat)
-    print("lambda=",lmbda)
 
     if solver == 'feuler':
         # Checks if solver will be stable with this lambda value
@@ -173,9 +231,7 @@ def solve_pde(L, T, mx, mt, kappa, solver):
             solver(u[1:-1], A, j)
         else:
             solver(u[1:-1], A, B, j)
-        
-        
-
+    
     return u, t
 
 
@@ -192,7 +248,7 @@ def main():
     mt = 1000   # number of gridpoints in time
 
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, solver='cn')
+    u,t = solve_pde(L, T, mx, mt, kappa, solver='feuler')
 
     # Plot solution in space and time
     plt.imshow(u, aspect='auto')
