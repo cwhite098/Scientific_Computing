@@ -2,6 +2,7 @@ from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from math import pi
+from scipy.sparse import diags
 
 def u_I(x, L):
         # initial temperature distribution
@@ -43,10 +44,18 @@ def tridiag(a, b, c, k1=-1, k2=0, k3=1):
 
 
 
-def forward_euler_pde(L, T, mx, mt, kappa):
+def forward_euler_step(u, A, j):
+
+    u[:,j+1] = A.dot(u[:,j])
+
+    return u
+
+
+
+
+def solve_pde(L, T, mx, mt, kappa, solver):
     '''
-    Function that carries out a vectorised forward Euler numerical PDE solver. It is constructed to solve
-    the 1 sptaial dimension, homogenous diffusion equation with Dirichlet boundary conditions
+    Function that solves a 1D diffusion equation using the numerical scheme specified.
 
     Parameters
     ----------
@@ -64,6 +73,12 @@ def forward_euler_pde(L, T, mx, mt, kappa):
 
     kappa : float
         The diffusion parameter for the PDE.
+    
+    solver : string
+        The string defining the numerical method to use.
+        'feuler' uses the forward Euler scheme.
+        'beuler' uses the backwards Euler scheme.
+        'cn' uses the Crank-Nicholson scheme.
 
     Returns
     -------
@@ -76,7 +91,7 @@ def forward_euler_pde(L, T, mx, mt, kappa):
 
     Example
     -------
-    u,t = forward_euler_pde(L=1, T=0.5, mx=10, mt=100, kappa=1)
+    u,t = solve_pde(L=1, T=0.5, mx=10, mt=100, kappa=1, 'feuler')
     '''
 
     # Set up the numerical environment variables
@@ -89,12 +104,29 @@ def forward_euler_pde(L, T, mx, mt, kappa):
     print("deltat=",deltat)
     print("lambda=",lmbda)
 
-    # Checks if solver will be stable with this lambda value
-    if lmbda >0.5:
-        raise ValueError('Lambda greater than 0.5! Consider reducing mx.')
-    if lmbda < 0:
-        raise ValueError('Lambda less than 0! Wrong args.')
+    if solver == 'feuler':
+        # Checks if solver will be stable with this lambda value
+        if lmbda >0.5:
+            raise ValueError('Lambda greater than 0.5! Consider reducing mx.')
+        if lmbda < 0:
+            raise ValueError('Lambda less than 0! Wrong args.')
+        solver = forward_euler_step
 
+        # Construct tri-diagonal matrix using lambda
+        a = np.array([lmbda]*(x.size-3))
+        b = np.array([1-2*lmbda]*(x.size-2))
+        A = diags((a,b,a),(-1,0,1))
+
+    elif solver == 'beuler':
+        solver = backward_euler_step
+
+    elif solver == 'cn':
+        solver = crank_nicholson_step
+
+    else:
+        raise ValueError('Solver specified does not exist!')
+
+    # initialise the solution matrix
     u = np.zeros((x.size, t.size))
 
     # Get initial conditions
@@ -105,17 +137,16 @@ def forward_euler_pde(L, T, mx, mt, kappa):
     u[0,0] = 0
     u[-1,0] = 0
 
-    # Construct tri-diagonal matrix using lambda
-    a = np.array([lmbda]*(x.size-1))
-    b = np.array([1-2*lmbda]*(x.size))
-    A_FE = tridiag(a,b,a,-1,0,1)
-
     for j in range(0, mt):
-        u[:,j+1] = np.matmul(u[:,j], A_FE)
-        
+
         # Apply boundary conditions
         u[0,j+1]=0
         u[-1,j+1]=0
+        
+        # Carry out solver step, excluding the boundaries
+        solver(u[1:-1], A, j)
+        
+        
 
     return u, t
 
@@ -133,7 +164,7 @@ def main():
     mt = 1000   # number of gridpoints in time
 
     # Get numerical solution
-    u,t = forward_euler_pde(L, T, mx, mt, kappa)
+    u,t = solve_pde(L, T, mx, mt, kappa, solver='feuler')
 
     # Plot solution in space and time
     plt.imshow(u, aspect='auto')
