@@ -1,11 +1,11 @@
-## Scientific Computing - Numerical Methods for ODEs and PDEs
+# Scientific Computing - Numerical Methods for ODEs and PDEs
 
 This package contains various methods for solving ODEs, PDEs as well as numerical shooting and numerical continuation.
 
 
 
-### Implemented Methods
-#### Solving ODEs
+## Implemented Methods
+### Solving ODEs
 For solving ODEs, the following methods are implemented:
  - The Euler Method,
  - The Midpoint Method,
@@ -15,10 +15,10 @@ For solving ODEs, the following methods are implemented:
 These methods can be applied to 1st order ODEs, systems of 1st order ODEs and higher order ODEs that have been reduced to a system of 1st order ODEs.
 
 
-#### Numerical Shooting
+### Numerical Shooting
 
 
-#### Numerical Continuation
+### Numerical Continuation
 Numerical continuation is the process of finding equilibria and periodic orbits of an ODE (or a system of ODEs) while varying a parameter.
 
 Methods implemented include:
@@ -28,7 +28,7 @@ Methods implemented include:
 These methods can be applied to 1st order ODEs, systems of 1st order ODEs and higher order ODEs that have been reduced to a system of 1st order ODEs.
 
 
-#### Solving PDEs
+### Solving PDEs
 For solving PDEs, the following methods are implememted:
  - Forward Euler Method,
  - Backward Euler Method,
@@ -40,7 +40,7 @@ These methods can be applied to PDEs of the following types:
     - One spatial dimension,
     - and more to come...
 
-### Requirements
+## Requirements
 Some existing Python packages are required to use this package. These include:
  - NumPy,
  - SciPy,
@@ -51,10 +51,13 @@ PUT COMMAND IN (ALSO MAKE REQUIREMENTS.TXT)!!!!
 
 
 
-### Examples
+## Examples
 Examples for the use of all of the above methods can be found as Python Notebooks in the examples folder.
 
 
-### Author
+## Testing
+Tests for the code in this package can be found in the tests folder. They are created using the built-in unittest class.
+
+## Author
 Christopher White
 gd19031@bristol.ac.uk
