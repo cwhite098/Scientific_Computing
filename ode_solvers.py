@@ -271,7 +271,7 @@ def solve_ode(method, f, t, X0, **params):
 
 def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true, **params):
     '''
-    Function that takes multiple numericcal methods and assessed their speed and
+    Function that takes multiple numerical methods and assesses their speed and
     performance for a desired error tolerance. Produces a plot to show the required
     step size to reach the desired tolerance.
 
