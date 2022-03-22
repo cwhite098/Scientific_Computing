@@ -59,7 +59,6 @@ def plot_solution(t, X, xlabel='t', ylabel='x', title='Solution', X_true=None):
     plt.title(title), plt.xlabel(xlabel), plt.ylabel(ylabel), plt.legend()
     plt.show()
 
-    return 0
 
 
 def plot_error(methods, f, t0, t1, X0, X1_true,  **params):
