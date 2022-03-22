@@ -332,7 +332,6 @@ def evaluate_methods(methods, f, desired_tol, t0, t1, X0, X_true, **params):
     plt.axhline(h_line[0], linestyle = '--', c='k', label='Desired Tol')
     plt.legend(), plt.show()
 
-    return 0
 
 
 
