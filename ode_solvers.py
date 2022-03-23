@@ -157,7 +157,7 @@ def solve_to(t0, t1, X0, f, method, **params):
         The numerical method to use. (euler_step, RK4_step, midpoint_step or heun3_step).
     **params:
         h_max : float
-            The maximum step size to use.
+            The maximum step size to use. The default value is 0.1.
         Any other parameters that need to be passed to the ODE function.
     
     Returns
@@ -217,9 +217,8 @@ def solve_ode(method, f, t, X0, **params):
         The initial coniditions of the ODE.
     **params:
         h_max : float 
-            The maximum step size to use in the solution.
-        Any parameters that need to be passed to the function
-        containing the ODE
+            The maximum step size to use in the solution. The default value is 0.1.
+        Any parameters that need to be passed to the function containing the ODE.
     
     Returns
     -------
@@ -228,7 +227,7 @@ def solve_ode(method, f, t, X0, **params):
     
     Example
     -------
-    X = solve_ode(euler_step, f, t=np.linspace(0,1,11), X0=1, h_max=0.1)
+    X = solve_ode('euler', f, t=np.linspace(0,1,11), X0=1, h_max=0.1)
     '''
     method_dict = { 'euler': euler_step,
                     'rk4': RK4_step,
