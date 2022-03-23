@@ -224,3 +224,29 @@ def plot_pde_specific_time(u, t, t_plot, L, title, exact = None):
     plt.show()
 
 
+def plot_orbit(X0, T, f, title, **params):
+    '''
+    Function that plots a periodic orbit using the output of the numerical shooting algorithm.
+
+    Parameters
+    ----------
+    X0 : list
+        The initial conditions of the periodic orbit.
+
+    T : float
+        The period of the orbit.
+
+    f : function
+        The function that the orbit occurs in. (system of ODEs).
+
+    title : string
+        The title for the plot.
+
+    **params:
+        Any parameters needed to solve the (system of) ODE(s).
+    '''
+
+    t = np.linspace(0,T,1000)
+    X = ode.solve_ode('rk4', f, t, X0, **params, h_max=0.001)
+    plot_solution(t, X, 't', 'X', title)
+
