@@ -1,7 +1,7 @@
 from ode_solvers import solve_ode
 import numpy as np
 from scipy.optimize import fsolve
-from ode import predator_prey, f, g, hopf
+from ode import predator_prey, f, g, hopf, hopf3D
 import plots as p
 
 
@@ -38,6 +38,7 @@ def root_finding_problem(X0, *data):
     X0 = X0[:-1]    # ICs of ODE
     t = np.linspace(0,T,3)    # time to solve ODE over
 
+    # No extra parameters provided
     if len(data)==2:
         f, phase_condition = data
         # Solve the ODE up until t=T
@@ -45,6 +46,7 @@ def root_finding_problem(X0, *data):
         # Construct the output, X(0) - X(T) and the phase condition
         output = np.append(X0 - solution[-1,:], phase_condition(X0))
 
+    # Extra parameters provided
     else:
         f, phase_condition, params = data
         # Solve the ODE up until t=T
@@ -159,11 +161,12 @@ def main():
     sigma = -1
     beta = 1
     t = np.linspace(0,1,101)
-    X0, T = numerical_shooting([1,1], 5, hopf, pc_hopf, beta=beta, sigma=sigma)
+    X0, T = numerical_shooting([1,1,1], 5, hopf3D, pc_hopf, beta=beta, sigma=sigma)
     print(X0)
     print(T)
+    
     t = np.linspace(0,T,1000)
-    X = solve_ode('rk4', hopf, t, X0, beta=beta, sigma=sigma, h_max=0.001)
+    X = solve_ode('rk4', hopf3D, t, X0, beta=beta, sigma=sigma, h_max=0.001)
     p.plot_solution(t, X, 't', 'u1 and u2', 'Hopf Limit Cycle')
 
     return 0
