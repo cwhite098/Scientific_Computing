@@ -133,3 +133,94 @@ def plot_error(methods, f, t0, t1, X0, X1_true,  **params):
     return method_errors, hs
 
 
+def plot_pde_space_time_solution(u, L, T, title):
+    '''
+    Function that plots a 2 dimensional solution to a pde (space and time) as a heatmap.
+
+    Parameters
+    ----------
+    u : np.array
+        A 2D array containing the solution to the PDE. The rows are the spatial dimension and the
+        columns are the time dimension.
+
+    L : float
+        The upper limit of the space domain.
+
+    T : float
+        The time the solution is calculated until.
+
+    title : string
+        The title for the plot.
+
+    Example
+    -------
+    plot_pde_space_time_solution(u, 1, 0.5, 'Diffusion Equation Solution')
+    '''
+    # Get the extent of the space and time domains so the plots reflect
+    # the values provided to the pde solver.
+    extent = [0 , L, 0 , T]
+    plt.imshow(u, aspect='auto', extent=extent)
+    
+    # Set axis labels and title
+    plt.xlabel('Time')
+    plt.ylabel('Space')
+    plt.title(title)
+    # Show the plot
+    plt.show()
+
+
+def plot_pde_specific_time(u, t, t_plot, L, title, exact = None):
+    '''
+    Function that plots a slice of the solution to a PDE at a specific time. Works for PDEs with one spatial and 
+    one temporal dimensions.
+
+    Parameters
+    ----------
+    u : np.array
+        A 2D array containing the solution to the PDE. The rows are the spatial dimension and the
+        columns are the time dimension.
+
+    t : np.array
+        A 1D array containing the times that the solution is evaluated at. This is returned by the
+        solve_pde function.
+
+    t_plot : float
+        The time at which to plot the solution.
+
+    L : float
+        The upper limit of the space domain.
+
+    title : string
+        The title for the plot.
+
+    exact : np.array
+        An array containing the exact solution to the pde at time t=t_plot.
+        It must be discretised in the spatial dimension in the same way as the numerical
+        solution.
+
+    Example
+    -------
+    plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact)
+    '''
+    # Get the index of the time we want to plot
+    index = [t==t_plot]
+    if not index:
+        raise ValueError('Non-existant time provided!')
+
+    # Select the slice of the solution at t=t_plot
+    solution = u[:,index[0]]
+    xx = np.linspace(0,L,u.shape[0])
+    # Plot u at t=t_plot
+    plt.plot(xx, solution, 'o', c='r', label='Numerical Solution')
+
+    # If exact solution provided, plot it as well.
+    if not exact.any() == None:
+        plt.plot(xx, exact, c='b', label='Exact Solution')
+
+    # Configure the plot and show it
+    plt.title(title+' at time t='+str(t_plot))
+    plt.xlabel('x'), plt.ylabel('u')
+    plt.legend()
+    plt.show()
+
+

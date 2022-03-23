@@ -6,9 +6,9 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
 def u_I(x, L):
-        # initial temperature distribution
-        y = (np.sin(pi*x/L))
-        return y
+    # initial temperature distribution
+    y = (np.sin(pi*x/L))
+    return y
 
 def u_exact(x,t, kappa, L):
     # the exact solution
@@ -251,20 +251,13 @@ def main():
     u,t = solve_pde(L, T, mx, mt, kappa, solver='feuler')
 
     # Plot solution in space and time
-    plt.imshow(u, aspect='auto')
-    plt.show()
+    from plots import plot_pde_space_time_solution
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map')
 
     # Plot x at time T from the exact solution and numerical method.
     xx = np.linspace(0,L,mx+1)
-    exact_sol = u_exact(xx, T, kappa, L)
-    print(exact_sol)
-    plt.plot(xx, u[:,-1], 'o', c='r')
-    plt.plot(xx, exact_sol, 'b-', label='exact')
-    plt.legend()
-    plt.show()
-
-
-
+    from plots import plot_pde_specific_time
+    plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact(xx, 0.3, kappa, L))
 
     return 0
 
