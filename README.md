@@ -45,19 +45,26 @@ Some existing Python packages are required to use this package. These include:
  - NumPy,
  - SciPy,
  - Matplotlib.
-A requirements.txt is also provided for easy install of the required packages. This can be carried out using the following command:
+A requirements.txt [here](requirements.txt), is also provided for easy install of the required packages. This can be carried out using the following command:
 
 PUT COMMAND IN (ALSO MAKE REQUIREMENTS.TXT)!!!!
 
 
 
 ## Examples
-Examples for the use of all of the above methods can be found as Python Notebooks in the examples folder.
+Examples for the use of all of the above methods can be found as Python Notebooks in the examples folder. This includes,
+ - Examples for solving ODEs [here](examples/solving_odes.ipynb),
+ - Examples for numerical shooting [here](examples/numerical_shooting.ipynb),
+ - more to come.
 
 
 ## Testing
-Tests for the code in this package can be found in the tests folder. They are created using the built-in unittest class.
+Tests for the code in this package can be found in the tests.py file [here](tests.py),. They are created using the built-in unittest class.
+
+
+## References
 
 ## Author
 Christopher White
+
 gd19031@bristol.ac.uk
