@@ -121,7 +121,42 @@ def root_finding(x, discretisation, function, u1, u2, p1, p2, param_to_vary, pha
 
 
 def natural_parameter(param_list, sols, param_to_vary, function, discretisation, phase_condition, **params):
+    '''
+    Function that carries out natural parameter continuation for a given function and discretisation.
 
+    Parameters
+    ----------
+    param_list : list
+        A list of the parameter values to be used in the continuation.
+
+    sols : list
+        A list of solutions. Initially it must only contain the initial solution (initial_u).
+
+    param_to_vary : string
+        A string the specifies the parameter that is to be varied in the continuation.
+
+    function : function
+        The function containing the equation or system of ODEs to which the continuation method
+        will be carried out on.
+
+    discretisation : function
+        Function that forms the root finding problem.
+
+    phase_condition : function
+        If the system is an ODE system, a phase condition is required to from the root finding
+        problem for the numerical shooting process.
+
+    **params:
+        Any parameters required to compute the output of the system.
+
+    Returns
+    -------
+    sols : list
+        Array containing the solutions to the system for each parameter value.
+
+    param_list : list
+        List containing all the parameter values that have been used to evaluate the system
+    '''
     T_guess = 5
     if discretisation == numerical_shooting:
         for i in range(len(param_list)):
@@ -136,8 +171,7 @@ def natural_parameter(param_list, sols, param_to_vary, function, discretisation,
                 break
 
         # Remove initial u
-        sols = sols[1:]
-        return np.array(sols), param_list
+        return sols, param_list
 
     # If not an ODE and shooting is not required
     else:
@@ -152,8 +186,52 @@ def natural_parameter(param_list, sols, param_to_vary, function, discretisation,
     return sols, param_list
 
 
-def pseudo_arclength(param_list, param_range, sols, param_to_vary, function, discretisation, Ts, phase_condition, **params):
 
+def pseudo_arclength(param_list, param_range, sols, param_to_vary, function, discretisation, Ts, phase_condition, **params):
+    '''
+    Function that carries out natural parameter continuation for a given function and discretisation.
+
+    Parameters
+    ----------
+    param_list : list
+        A list of the parameter values to be used in the continuation.
+    
+    param_range : list
+        A list of length 2 that contains the upper and lower bounds for the parameter
+        that is to be varied.
+
+    sols : list
+        A list of solutions. Initially it must only contain the initial solution (initial_u).
+
+    param_to_vary : string
+        A string the specifies the parameter that is to be varied in the continuation.
+
+    function : function
+        The function containing the equation or system of ODEs to which the continuation method
+        will be carried out on.
+
+    discretisation : function
+        Function that forms the root finding problem.
+
+    Ts : list
+        A list containing the computed periods of the orbits. Initially this will have one entry, the
+        T_guess supplied to the continuation function.
+
+    phase_condition : function
+        If the system is an ODE system, a phase condition is required to from the root finding
+        problem for the numerical shooting process.
+
+    **params:
+        Any parameters required to compute the output of the system.
+
+    Returns
+    -------
+    sols : list
+        Array containing the solutions to the system for each parameter value.
+
+    param_list : list
+        List containing all the parameter values that have been used to evaluate the system
+    '''
     param_list = list(param_list[:2])
     initial_u = sols[-1]
      # While the parameter lies within the specified range, continue
@@ -264,9 +342,9 @@ def continuation(initial_u, param_to_vary, param_range, no_param_values, functio
 
     # Select and carry out method
     if method == 'pseudo-arclength':
-        pseudo_arclength(param_list, param_range, sols, param_to_vary, function, discretisation, Ts, phase_condition, **params)
+        sols, param_list = pseudo_arclength(param_list, param_range, sols, param_to_vary, function, discretisation, Ts, phase_condition, **params)
     elif method == 'natural-parameter':
-        natural_parameter(param_list, sols, param_to_vary, function, discretisation, phase_condition, **params)
+        sols, param_list = natural_parameter(param_list, sols, param_to_vary, function, discretisation, phase_condition, **params)
     else:
         raise ValueError('Incorrect method specified!')
 
