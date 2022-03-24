@@ -16,6 +16,9 @@ These methods can be applied to 1st order ODEs, systems of 1st order ODEs and hi
 
 
 ### Numerical Shooting
+Numerical shooting is the process of finding periodic orbits in the oscillatory solutions of ODEs or ODE systems.
+
+This is carried out by defining a phase condition and constructing a root finding problem, where the roots are the initial conditions and period of the orbit.
 
 
 ### Numerical Continuation
@@ -25,7 +28,7 @@ Methods implemented include:
  - Natural Parameter Continuation,
  - Pseudo-Arclength Continaution.
 
-These methods can be applied to 1st order ODEs, systems of 1st order ODEs and higher order ODEs that have been reduced to a system of 1st order ODEs.
+These methods can be applied to 1st order ODEs, systems of 1st order ODEs, higher order ODEs that have been reduced to a system of 1st order ODEs as well as equations where the roots are found instead of equilibria or periodic orbits.
 
 
 ### Solving PDEs
@@ -39,6 +42,7 @@ These methods can be applied to PDEs of the following types:
     - Homogeneous Dirichlet Boundary Conditions ($u(x,0) = u(x,L) = 0$),
     - One spatial dimension,
     - and more to come...
+
 
 ## Requirements
 Some existing Python packages are required to use this package. These include:
@@ -55,11 +59,14 @@ PUT COMMAND IN (ALSO MAKE REQUIREMENTS.TXT)!!!!
 Examples for the use of all of the above methods can be found as Python Notebooks in the examples folder. This includes,
  - Examples for solving ODEs [here](examples/solving_odes.ipynb),
  - Examples for numerical shooting [here](examples/numerical_shooting.ipynb),
+ - Examples for numerical continuation [here](examples/numerical_continuation.ipynb),
  - more to come.
+
+These examples can be viewed straight in this repo, or downloaded where they can be run and tinkered with.
 
 
 ## Testing
-Tests for the code in this package can be found in the tests.py file [here](tests.py),. They are created using the built-in unittest class.
+Tests for the code in this package can be found in the tests.py file [here](tests.py). They are created using the built-in unittest class.
 
 
 ## References
