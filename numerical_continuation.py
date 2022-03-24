@@ -52,8 +52,8 @@ def natural_param_continuation(initial_u, param_to_vary, param_range, no_param_v
 
     Returns
     -------
-    sols : list
-        A list containing the system state (equilibrium/limit cycle) for each parameter
+    sols : np.array
+        An array containing the system state (equilibrium/limit cycle) for each parameter
         value.
 
     param_list : list
@@ -95,7 +95,7 @@ def natural_param_continuation(initial_u, param_to_vary, param_range, no_param_v
             root = fsolve(discretisation(function), sols[i], args=params)
             sols.append(root)
 
-        return sols[1:], param_list
+        return np.array(sols[1:]), param_list
 
 
 
@@ -316,6 +316,110 @@ def pseudo_arclength_continuation(initial_u, param_to_vary, param_range, no_para
     return sols, param_list
 
 
+def natural_parameter(param_list, sols, param_to_vary, function, discretisation, phase_condition, **params):
+
+    T_guess = 5
+    if discretisation == numerical_shooting:
+        for i in range(len(param_list)):
+            # Set the value of the varying parameter
+            params[param_to_vary] = param_list[i]
+            prev_sol = sols[i]
+            try:
+                X0, T = numerical_shooting(prev_sol.copy(), T_guess, function, phase_condition, **params)
+                sols.append(list(X0))
+            except ValueError:
+                print('Root finder did not converge, try different T_guess')
+                break
+
+        # Remove initial u
+        sols = sols[1:]
+        return np.array(sols), param_list
+
+    # If not an ODE and shooting is not required
+    else:
+        # Loop through param values
+        for i in range(len(param_list)):
+            # Set value of varying parameter
+            params[param_to_vary] = param_list[i]
+            # Solve root finding problem
+            root = fsolve(discretisation(function), sols[i], args=params)
+            sols.append(root)
+    
+    return sols, param_list
+
+
+def pseudo_arclength(param_list, param_range, sols, param_to_vary, function, discretisation, Ts, phase_condition, **params):
+
+    initial_u = sols[-1]
+     # While the parameter lies within the specified range, continue
+    while np.min(param_range) <= param_list[-1] and param_list[-1] <= np.max(param_range):
+        
+        # Generate the first 2 system states and parameter values
+        if len(sols)==1:
+            for i in range(2):
+                # Set parameter
+                param1 = param_list[-2+i]
+                params[param_to_vary] = param1
+                # If ODE system
+                if discretisation == numerical_shooting:
+                    X0, T = numerical_shooting(sols[-1].copy(), Ts[-1], function, phase_condition, **params)
+                    u1 = list(X0)
+                    Ts.append(T)
+                # If non-ODE system
+                else:
+                    u1 = fsolve(discretisation(function), initial_u, args=params)
+                sols.append(list(u1))
+
+        # Get system states and param values for next continuation step      
+        u1 = np.array(sols[-2])
+        u2 = np.array(sols[-1])
+        param1 = param_list[-2]
+        param2 = param_list[-1]
+    
+        # Add period to state vector is searching for orbits
+        if discretisation == numerical_shooting:
+            u1 = np.append(u1, Ts[-2])
+            u2 = np.append(u2, Ts[-1])
+            pred = np.append(u2 + (u2 - u1), param2+(param2-param1)) 
+        else:
+            pred = np.append(u2 + (u2 - u1),param2+(param2-param1))
+
+        # Solve root finding problem and store the results
+        x = fsolve(root_finding, np.array(pred),
+                    args = (discretisation, function, u1, u2, param1, param2, param_to_vary, phase_condition, params))
+
+        sols.append(list(x[:len(initial_u)]))
+        Ts.append(x[-2])
+        param_list.append(x[-1])
+    
+    return sols, param_list
+
+
+
+def continuation(initial_u, param_to_vary, param_range, no_param_values, function, method = 'pseudo-arclength', discretisation=lambda x:x,
+                                    solver='fsolve', phase_condition = None, T_guess = 5, **params):
+
+    # Form param list and retrieve first 2 entries to begin continuation
+    param_list = np.linspace(param_range[0], param_range[1], no_param_values)
+
+    # Save the initial system state and initial guess at orbit period.
+    sols = [initial_u]
+    Ts = [T_guess]
+
+    # Select and carry out method
+    if method == 'pseudo-arclength':
+        param_list = list(param_list[:2])
+        pseudo_arclength(param_list, param_range, sols, param_to_vary, function, discretisation, Ts, phase_condition, **params)
+    if method == 'natural-parameter':
+        natural_parameter(param_list, sols, param_to_vary, function, discretisation, phase_condition, **params)
+
+    # Remove initial_u from solution vector
+    sols = np.array(sols[1:])
+    return sols, param_list
+
+
+
+
 def main():
 
     # Function containing cubic equation parameterised by c
@@ -335,18 +439,19 @@ def main():
 
 
     # Testing continuation with the cubic equation
-    u, p  = natural_param_continuation(1, 'c', [-2,2], 20, cubic, c=-2)
+    u, p  = continuation(1, 'c', [-2,2], 20, cubic, method='natural-parameter', c=-2)
     plt.plot(p,u, label='Natural')
-    u, p = pseudo_arclength_continuation([1], 'c', [-2,2], 50, cubic, c=-2)
+    u, p = continuation([1], 'c', [-2,2], 50, cubic, method='pseudo-arclength', c=-2)
     plt.plot(p,u,label='Pseudo-Arclength')
     plt.xlabel('C'), plt.ylabel('Root Location'), plt.title('Pseudo-Arclength Continuation')
     plt.show()
 
+    
     # Testing continuation with the hopf normal form
-    u, p = natural_param_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, beta=-1, sigma=-1)
+    u, p =continuation([-1,-1], 'beta', [2,0], 50, hopf, 'natural-parameter', numerical_shooting, phase_condition=pc_hopf, beta=-1, sigma=-1)
     plt.plot(p,u[:,0], label='Natural')
-    u, p = pseudo_arclength_continuation([-1,-1], 'beta', [2,0], 50, hopf, numerical_shooting, phase_condition=pc_hopf, T_guess=6, beta=-1, sigma=-1)
-    plt.plot(p,u[:,0], label='Pseudo-Arclength')
+    #u, p = continuation([-1,-1], 'beta', [2,0], 50, hopf, 'pseudo-arclength', numerical_shooting, phase_condition=pc_hopf, T_guess=6, beta=-1, sigma=-1)
+    #plt.plot(p,u[:,0], label='Pseudo-Arclength')
     plt.xlabel('Beta'), plt.ylabel('u'), plt.title('Continuation with Hopf'), plt.legend()
     plt.show()
 
@@ -357,6 +462,7 @@ def main():
     plt.plot(p,u[:,0], label='Pseudo-Arclength')
     plt.xlabel('Beta'), plt.ylabel('u'), plt.title('Continuation with Modified Hopf'), plt.legend()
     plt.show()
+    
 
     return 0
 
