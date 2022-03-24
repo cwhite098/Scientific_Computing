@@ -279,7 +279,7 @@ def pseudo_arclength(param_list, param_range, sols, param_to_vary, function, dis
 
 
 
-def continuation(initial_u, param_to_vary, param_range, no_param_values, function, method = 'pseudo-arclength', discretisation=lambda x:x,
+def continuation(initial_u, param_to_vary, param_range, no_param_values, function, method = 'pseudo-arclength', discretisation=None,
                                                 phase_condition = None, T_guess = 5, **params):
     '''
     Function that carries out the numerical continuation either using natural parameter continuation
@@ -306,9 +306,9 @@ def continuation(initial_u, param_to_vary, param_range, no_param_values, functio
     method : string
         The method to use for numerical continuation. Either 'natural-parameter' or 'pseudo-arclength'.
 
-    discretisation : function
-        Function that forms the root finding problem along with the supplied system and
-        the pseudo-arclength condition.
+    discretisation : string
+        The chosen discretisation for the numerical continuation. If the continuation is for an equation leave empty,
+        if it is for an ODE (system) choose 'numerical-shooting'.
 
     phase_condition : function
         If the system is an ODE system, a phase condition is required to from the root finding
@@ -339,6 +339,14 @@ def continuation(initial_u, param_to_vary, param_range, no_param_values, functio
     # Save the initial system state and initial guess at orbit period.
     sols = [initial_u]
     Ts = [T_guess]
+
+    # Select the required discretisation
+    if not discretisation:
+        discretisation = lambda x:x
+    elif discretisation == 'numerical-shooting':
+        discretisation = numerical_shooting
+    else:
+        raise ValueError('Incorrect discretisation entered!')
 
     # Select and carry out method
     if method == 'pseudo-arclength':
@@ -374,7 +382,7 @@ def main():
 
 
     # Testing continuation with the cubic equation
-    u, p  = continuation(1, 'c', [-2,2], 20, cubic, method='natural-parameter', c=-2)
+    u, p  = continuation([1], 'c', [-2,2], 20, cubic, method='natural-parameter', c=-2)
     plt.plot(p,u, label='Natural')
     u, p = continuation([1], 'c', [-2,2], 50, cubic, method='pseudo-arclength', c=-2)
     plt.plot(p,u,label='Pseudo-Arclength')
@@ -383,17 +391,17 @@ def main():
 
     
     # Testing continuation with the hopf normal form
-    u, p =continuation([-1,-1], 'beta', [2,0], 50, hopf, 'natural-parameter', numerical_shooting, phase_condition=pc_hopf, beta=-1, sigma=-1)
+    u, p =continuation([-1,-1], 'beta', [2,0], 50, hopf, 'natural-parameter', 'numerical-shooting', phase_condition=pc_hopf, beta=-1, sigma=-1)
     plt.plot(p,u[:,0], label='Natural')
-    u, p = continuation([-1,-1], 'beta', [2,0], 50, hopf, 'pseudo-arclength', numerical_shooting, phase_condition=pc_hopf, T_guess=6, beta=-1, sigma=-1)
+    u, p = continuation([-1,-1], 'beta', [2,0], 50, hopf, 'pseudo-arclength', 'numerical-shooting', phase_condition=pc_hopf, T_guess=6, beta=-1, sigma=-1)
     plt.plot(p,u[:,0], label='Pseudo-Arclength')
     plt.xlabel('Beta'), plt.ylabel('u'), plt.title('Continuation with Hopf'), plt.legend()
     plt.show()
 
     # Testing continuation with modified hopf normal form
-    u, p =  continuation([1,1], 'beta', [2,-1], 20, modified_hopf, 'natural-parameter', numerical_shooting, phase_condition=pc_modified_hopf, T_guess=6, beta=-1)
+    u, p =  continuation([1,1], 'beta', [2,-1], 50, modified_hopf, 'natural-parameter', 'numerical-shooting', phase_condition=pc_modified_hopf, T_guess=6, beta=-1)
     plt.plot(p,u[:,0], label='Natural')
-    u, p = continuation([1,1], 'beta', [2,-1], 100, modified_hopf, 'pseudo-arclength', numerical_shooting, phase_condition=pc_modified_hopf, T_guess=6, beta=2)
+    u, p = continuation([1,1], 'beta', [2,-1], 50, modified_hopf, 'pseudo-arclength', 'numerical-shooting', phase_condition=pc_modified_hopf, T_guess=6, beta=2)
     plt.plot(p,u[:,0], label='Pseudo-Arclength')
     plt.xlabel('Beta'), plt.ylabel('u'), plt.title('Continuation with Modified Hopf'), plt.legend()
     plt.show()
