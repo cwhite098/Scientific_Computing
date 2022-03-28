@@ -133,7 +133,7 @@ def plot_error(methods, f, t0, t1, X0, X1_true,  **params):
     return method_errors, hs
 
 
-def plot_pde_space_time_solution(u, L, T, title):
+def plot_pde_space_time_solution(u, L, T, title, show=True):
     '''
     Function that plots a 2 dimensional solution to a pde (space and time) as a heatmap.
 
@@ -166,7 +166,8 @@ def plot_pde_space_time_solution(u, L, T, title):
     plt.ylabel('Space')
     plt.title(title)
     # Show the plot
-    plt.show()
+    if show:
+        plt.show()
 
 
 def plot_pde_specific_time(u, t, t_plot, L, title, exact = None):
