@@ -158,7 +158,7 @@ def plot_pde_space_time_solution(u, L, T, title):
     '''
     # Get the extent of the space and time domains so the plots reflect
     # the values provided to the pde solver.
-    extent = [0 , L, 0 , T]
+    extent = [0 , T, 0 , L]
     plt.imshow(u, aspect='auto', extent=extent)
     
     # Set axis labels and title
@@ -214,7 +214,11 @@ def plot_pde_specific_time(u, t, t_plot, L, title, exact = None):
     plt.plot(xx, solution, 'o', c='r', label='Numerical Solution')
 
     # If exact solution provided, plot it as well.
-    if not exact.any() == None:
+    try:
+        is_array = exact.shape[0]
+    except:
+        is_array = None
+    if is_array:
         plt.plot(xx, exact, c='b', label='Exact Solution')
 
     # Configure the plot and show it
