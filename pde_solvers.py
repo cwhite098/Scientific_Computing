@@ -8,7 +8,7 @@ from scipy.sparse.linalg import spsolve
 def u_I(x, L):
     # initial temperature distribution
     y = (np.sin(pi*x/L))
-    return 0
+    return y
 
 def u_exact(x,t, kappa, L):
     # the exact solution
@@ -45,7 +45,7 @@ def tridiag(a, b, c, k1=-1, k2=0, k3=1):
 
 
 
-def forward_euler_step(u, A, BCs, BC_type, lmbda, j):
+def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
     '''
     Function that carries out one step of the forward Euler numerical method for approximating
     PDEs.
@@ -58,8 +58,14 @@ def forward_euler_step(u, A, BCs, BC_type, lmbda, j):
     A : scipy sparse matrix
         A scipy sparse matrix that is used to calculate the next time step of the solution.
 
-    BCs : list
-        A length 2 list containing the boundary conditions at each side.
+    t : np.array
+        The array containing the times to solve the PDE at.
+    
+    L : float
+        The extent of the space doamin.
+    
+    BC : function
+        The function that calculates the boundary conditions.
 
     BC_type : string
         The type of boundary conditions, either 'dirichlet' or 'neumann'.
@@ -79,19 +85,24 @@ def forward_euler_step(u, A, BCs, BC_type, lmbda, j):
     if BC_type == 'dirichlet':
         # Carry out matrix multiplication
         u[1:-1,j+1] = A.dot(u[1:-1,j])
+
+        # Compute the BCs from provided function
+        time = t[j]
+        BCs = [BC(0, time), BC(L, time)]
+
         # Add boundary conditions
         pj = BCs[0]
         qj = BCs[1]
+        # Add the boundary itself
+        u[0,j] = BCs[0]
+        u[-1,j] = BCs[1]
         # Add effect of boundary to inner rows
         u[1,j+1] += lmbda*pj
         u[-2,j+1] += lmbda*qj
-        # Add the boundary itself
-        u[0,j+1] = pj
-        u[-1,j+1] = qj
 
     return u
 
-def backward_euler_step(u, A, j):
+def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
     '''
     Function that carries out one step of the backward Euler numerical method for approximating
     PDEs.
@@ -104,6 +115,21 @@ def backward_euler_step(u, A, j):
     A : scipy sparse matrix
         A scipy sparse matrix that is used to calculate the next time step of the solution.
 
+    t : np.array
+        The array containing the times to solve the PDE at.
+    
+    L : float
+        The extent of the space doamin.
+    
+    BC : function
+        The function that calculates the boundary conditions.
+
+    BC_type : string
+        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+    
+    lmbda : float
+        The value of lambda computed from mx, mt and the diffusion coefficient.
+
     j : int
         The index for the time position in the solution.
 
@@ -112,8 +138,22 @@ def backward_euler_step(u, A, j):
     u : np.array
         The updated solution matrix.
     '''
+    if BC_type == 'dirichlet':
+        # Get BCs for t_{j+1}
+        time = t[j+1]
+        BCs = [BC(0,time), BC(L,time)]
 
-    u[:,j+1] = spsolve(A, u[:,j])
+        # Make vector to add to u at t=j before applying beuler method
+        BC_vec = np.zeros(u.shape[0]-2)
+        BC_vec[0] = lmbda*BCs[0]
+        BC_vec[-1] = lmbda*BCs[1]
+
+        # Solve the matrix equation
+        u[1:-1,j+1] = spsolve(A, u[1:-1,j] + BC_vec)
+
+        # Add the boundary conditions
+        u[0,j+1] = BCs[0]
+        u[-1,j+1] = BCs[1]
 
     return u
 
@@ -249,16 +289,16 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, solver):
 
     for j in range(0, mt):
 
-        # Compute the BCs from provided function
-        time = t[j]
-        BCs = [BC(0, time), BC(L, time)]
-        
         # Carry out solver step, including the boundaries
         if not solver == crank_nicholson_step:
-            solver(u, A, BCs, BC_type, lmbda, j)
+            solver(u, A, t, L, BC, BC_type, lmbda, j)
         else:
             solver(u[1:-1], A, B, j)
     
+    # Add BCs for t=T
+    u[0,-1] = BC(0,T)
+    u[-1,-1] = BC(L,T)
+
     return u, t
 
 
@@ -294,11 +334,15 @@ def main():
     # Non-zero Dirichlet BCs
     def non_homo_BC(x,t):
         # Return the sin of the time
-        return 1
+        return np.sin(t)
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='feuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo')
-    plot_pde_specific_time(u, t, 0.5, L, 'Diffusion Solution non-homo')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='beuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
+
+
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='beuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo b')
+
 
     return 0
 
