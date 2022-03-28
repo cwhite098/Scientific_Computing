@@ -100,6 +100,19 @@ def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         u[1,j+1] += lmbda*pj
         u[-2,j+1] += lmbda*qj
 
+    if BC_type == 'neumann':
+        # Augment the matrix A
+        zero_vecs = np.zeros(A.shape[1])
+        zero_vecs[0] = 2*lmbda
+        A = vstack((zero_vecs, A, np.flip(zero_vecs)))
+        aug_A = np.zeros((A.shape[0],1))
+        aug_A[0,0] = 1-2*lmbda
+        aug_A[1,0] = lmbda
+        A = hstack((aug_A, A, np.flip(aug_A)))
+        A = csr_matrix(A)
+
+        u[:,j+1] = A.dot(u[:,j])
+
     return u
 
 def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
@@ -154,6 +167,12 @@ def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         # Add the boundary conditions
         u[0,j+1] = BCs[0]
         u[-1,j+1] = BCs[1]
+
+    if BC_type == 'neumann':
+        # Look in bookmarks
+        # Make vector to add to u at t=j before applying beuler method
+        u=u
+
 
     return u
 
@@ -351,7 +370,7 @@ def main():
     # Set problem parameters/functions
     kappa = 0.1   # diffusion constant
     L=2      # length of spatial domain
-    T=1       # total time to solve for
+    T=1      # total time to solve for
 
     # Set numerical parameters
     mx = 100     # number of gridpoints in space
@@ -384,6 +403,13 @@ def main():
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='cn')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo cn')
+
+
+    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='feuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map homo_neu f')
+
+    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', non_homo_BC, u_I, solver='feuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu f')
 
 
     return 0
