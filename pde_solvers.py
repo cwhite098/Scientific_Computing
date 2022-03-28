@@ -2,7 +2,7 @@ from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from math import pi
-from scipy.sparse import diags
+from scipy.sparse import diags, vstack, hstack, csr_matrix
 from scipy.sparse.linalg import spsolve
 
 def u_I(x, L):
@@ -157,7 +157,7 @@ def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
 
     return u
 
-def crank_nicholson_step(u, A, B, j):
+def crank_nicholson_step(u, A, B, t, L, BC, BC_type, lmbda, j):
     '''
     Function that carries out one step of the fcrank-nicholson method for approximating
     PDEs.
@@ -181,8 +181,33 @@ def crank_nicholson_step(u, A, B, j):
     u : np.array
         The updated solution matrix.
     '''
+    if BC_type == 'dirichlet':
+        # https://mathonweb.com/resources/book4/Heat-Equation.pdf
 
-    u[:,j+1] = spsolve(A, B.dot(u[:,j]))
+        time = t[j]
+
+        R = B.dot(u[:,j])
+        # Add BC at x=0 and x=L
+        R[0] = BC(0,time)
+        R[0] = BC(L,time)
+        R = csr_matrix(R)
+
+        # Augment the matrix A
+        zero_vecs = np.zeros(A.shape[1])
+        A = vstack((zero_vecs, A, zero_vecs))
+        aug_A = np.zeros((A.shape[0],1))
+        aug_A[0,0] = 1
+        aug_A[1,0] = -lmbda/2
+        A = hstack((aug_A, A, np.flip(aug_A)))
+        A = csr_matrix(A)
+
+        # Solve for next time step
+        sol = spsolve(A, R.transpose())
+        u[:,j+1] = sol
+        
+        # Add the boundary conditions
+        u[0,j+1] = BC(0, t[j+1])
+        u[-1,j+1] = BC(L, t[j+1])
 
     return u
 
@@ -269,8 +294,8 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, solver):
         b = np.array([1+lmbda]*(x.size-2))
         A = diags((a,b,a), (-1,0,1), format='csr')
 
-        a = np.array([lmbda/2]*(x.size-3))
-        b = np.array([1-lmbda]*(x.size-2))
+        a = np.array([lmbda/2]*(x.size-1))
+        b = np.array([1-lmbda]*(x.size-0))
         B = diags((a,b,a), (-1,0,1), format='csr')
 
     else:
@@ -293,9 +318,9 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, solver):
         if not solver == crank_nicholson_step:
             solver(u, A, t, L, BC, BC_type, lmbda, j)
         else:
-            solver(u[1:-1], A, B, j)
+            solver(u, A, B, t, L, BC, BC_type, lmbda, j)
     
-    # Add BCs for t=T
+    # Add BCs for t=T (necessary for feuler)
     u[0,-1] = BC(0,T)
     u[-1,-1] = BC(L,T)
 
@@ -339,9 +364,8 @@ def main():
     u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
 
-
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='beuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo b')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='cn')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo cn')
 
 
     return 0
