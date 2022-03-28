@@ -173,8 +173,23 @@ def crank_nicholson_step(u, A, B, t, L, BC, BC_type, lmbda, j):
     B : scipy sparse matrix
         A scipy sparse matrix (tri-diagonal) that is used to multiply the previous step of the solution.
 
+    t : np.array
+        The array containing the times to solve the PDE at.
+    
+    L : float
+        The extent of the space doamin.
+    
+    BC : function
+        The function that calculates the boundary conditions.
+
+    BC_type : string
+        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+    
+    lmbda : float
+        The value of lambda computed from mx, mt and the diffusion coefficient.
+
     j : int
-        The time at which the forward Euler step is applied.
+        The index for the time position in the solution.
 
     Returns
     -------
@@ -213,7 +228,7 @@ def crank_nicholson_step(u, A, B, t, L, BC, BC_type, lmbda, j):
 
 
 
-def solve_pde(L, T, mx, mt, kappa, BC_type, BC, solver):
+def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
     '''
     Function that solves a 1D diffusion equation using the numerical scheme specified.
 
@@ -239,6 +254,9 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, solver):
 
     BC : function
         The boundary condition as a callable function.
+
+    IC : function
+        The initial condition as a callable function.
     
     solver : string
         The string defining the numerical method to use.
@@ -306,7 +324,7 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, solver):
 
     # Get initial conditions and apply
     for i in range(len(x)):
-        u[i,0] = u_I(x[i], L)
+        u[i,0] = IC(x[i], L)
 
     # Apply boundary condition for t=0
     u[0,0] = BC(0, 0)
@@ -344,7 +362,7 @@ def main():
         return 0
 
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I, solver='feuler')
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
@@ -361,10 +379,10 @@ def main():
         # Return the sin of the time
         return np.sin(t)
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='cn')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='cn')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo cn')
 
 

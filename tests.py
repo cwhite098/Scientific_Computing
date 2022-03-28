@@ -112,13 +112,8 @@ class TestPDESolvers(unittest.TestCase):
 
     def setUp(self):
 
-        def u_I(x, L):
-            # initial temperature distribution
-            y = (np.sin(pi*x/L))
-            return y
-
-        def u_exact(x,t, kappa, L):
-            # the exact solution
+        def u_exact_dhomo(x,t, kappa, L):
+            # the exact solution for homogeneous Dirichlet case
             y = np.exp(-kappa*(pi**2/L**2)*t)*np.sin(pi*x/L)
             return y
 
@@ -131,24 +126,37 @@ class TestPDESolvers(unittest.TestCase):
         self.mx = 100     # number of gridpoints in space
         self.mt = 1000   # number of gridpoints in time
 
-        # Get exact solution
+        # Get exact solution for homogeneous Dirichlet case
         xx = np.linspace(0,self.L,self.mx+1)
-        self.exact_sol = u_exact(xx, self.T, self.kappa, self.L)
+        self.exact_sol_dhomo = u_exact_dhomo(xx, self.T, self.kappa, self.L)
 
-    def test_method_forward_euler(self):
-        # Get numerical solution
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, solver='feuler')
-        self.assertTrue(np.abs(u[:,-1] - self.exact_sol).all() < 10**-4)
+    def u_I(self, x, L):
+        # initial temperature distribution
+        y = (np.sin(pi*x/L))
+        return y
 
-    def test_method_backward_euler(self):
-        # Get numerical solution
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, solver='beuler')
-        self.assertTrue(np.abs(u[:,-1] - self.exact_sol).all() < 10**-4)
+    def homo_BC(self, x, t):
+        # Homogeneous BCs, always return 0
+        return 0
 
-    def test_method_crank_nicholson(self):
-        # Get numerical solution
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, solver='cn')
-        self.assertTrue(np.abs(u[:,-1] - self.exact_sol).all() < 10**-4)
+    def non_homo_BC(self,x,t):
+        # Return the sin of the time
+        return np.sin(t)
+
+    def test_method_forward_euler_dhomo(self):
+        # Test for feuler method w/ homogeneous Dirichlet BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, solver='feuler')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dhomo).all() < 10**-4)
+
+    def test_method_backward_euler_dhomo(self):
+        # Test for beuler method w/ homogeneous Dirichlet BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, solver='beuler')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dhomo).all() < 10**-4)
+
+    def test_method_crank_nicholson_dhomo(self):
+        # Test for CN method w/ homogeneous Dirichlet BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, solver='cn')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dhomo).all() < 10**-4)
 
 
 if __name__ == '__main__':
