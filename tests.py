@@ -117,6 +117,11 @@ class TestPDESolvers(unittest.TestCase):
             y = np.exp(-kappa*(pi**2/L**2)*t)*np.sin(pi*x/L)
             return y
 
+        def u_exact_dnonhomo(x,t,kappa,L):
+            # The exact solution for non homogeneous Dirichlet case
+            y = -1/(np.sin(np.sqrt(2/kappa)*L)) * np.sin(np.sqrt(2/kappa)*(x-L)) * np.e**(-2*t)
+            return y
+
         # Set problem parameters/functions
         self.kappa = 0.1   # diffusion constant
         self.L=1      # length of spatial domain
@@ -129,20 +134,30 @@ class TestPDESolvers(unittest.TestCase):
         # Get exact solution for homogeneous Dirichlet case
         xx = np.linspace(0,self.L,self.mx+1)
         self.exact_sol_dhomo = u_exact_dhomo(xx, self.T, self.kappa, self.L)
+        self.exact_sol_dnonhomo = u_exact_dnonhomo(xx, self.T, self.kappa, self.L)
 
     def u_I(self, x, L):
         # initial temperature distribution
         y = (np.sin(pi*x/L))
         return y
 
+    def u_I2(self, x, L):
+        if x==0:
+            return 1
+        else:
+            return 0
+
     def homo_BC(self, x, t):
         # Homogeneous BCs, always return 0
         return 0
 
     def non_homo_BC(self,x,t):
-        # Return the sin of the time
-        return np.sin(t)
+        if x==0:
+            return 1*np.e**(-2*t)
+        else:
+            return 0
 
+    ######################################################################################################################
     def test_method_forward_euler_dhomo(self):
         # Test for feuler method w/ homogeneous Dirichlet BCs
         u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, solver='feuler')
@@ -157,6 +172,23 @@ class TestPDESolvers(unittest.TestCase):
         # Test for CN method w/ homogeneous Dirichlet BCs
         u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, solver='cn')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dhomo).all() < 10**-4)
+        
+    ######################################################################################################################
+
+    def test_method_forward_euler_dnonhomo(self):
+        # Test for feuler method w/ homogeneous Dirichlet BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.non_homo_BC, self.u_I2, solver='feuler')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dnonhomo).all() < 10**-4)
+
+    def test_method_backward_euler_dnonhomo(self):
+        # Test for beuler method w/ homogeneous Dirichlet BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.non_homo_BC, self.u_I2, solver='beuler')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dnonhomo).all() < 10**-4)
+
+    def test_method_crank_nicholson_dnonhomo(self):
+        # Test for CN method w/ homogeneous Dirichlet BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.non_homo_BC, self.u_I2, solver='cn')
+        self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dnonhomo).all() < 10**-4)
 
 
 if __name__ == '__main__':
