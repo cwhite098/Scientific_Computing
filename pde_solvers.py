@@ -8,7 +8,7 @@ from scipy.sparse.linalg import spsolve
 def u_I(x, L):
     # initial temperature distribution
     y = (np.sin(pi*x/L))
-    return y
+    return 0
 
 def u_exact(x,t, kappa, L):
     # the exact solution
@@ -45,7 +45,7 @@ def tridiag(a, b, c, k1=-1, k2=0, k3=1):
 
 
 
-def forward_euler_step(u, A, j):
+def forward_euler_step(u, A, BCs, BC_type, lmbda, j):
     '''
     Function that carries out one step of the forward Euler numerical method for approximating
     PDEs.
@@ -58,15 +58,36 @@ def forward_euler_step(u, A, j):
     A : scipy sparse matrix
         A scipy sparse matrix that is used to calculate the next time step of the solution.
 
+    BCs : list
+        A length 2 list containing the boundary conditions at each side.
+
+    BC_type : string
+        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+    
+    lmbda : float
+        The value of lambda computed from mx, mt and the diffusion coefficient.
+
     j : int
-        The time at which the forward Euler step is applied.
+        The index for the time position in the solution.
 
     Returns
     -------
     u : np.array
         The updated solution matrix.
     '''
-    u[:,j+1] = A.dot(u[:,j])
+
+    if BC_type == 'dirichlet':
+        # Carry out matrix multiplication
+        u[1:-1,j+1] = A.dot(u[1:-1,j])
+        # Add boundary conditions
+        pj = BCs[0]
+        qj = BCs[1]
+        # Add effect of boundary to inner rows
+        u[1,j+1] += lmbda*pj
+        u[-2,j+1] += lmbda*qj
+        # Add the boundary itself
+        u[0,j+1] = pj
+        u[-1,j+1] = qj
 
     return u
 
@@ -84,7 +105,7 @@ def backward_euler_step(u, A, j):
         A scipy sparse matrix that is used to calculate the next time step of the solution.
 
     j : int
-        The time at which the forward Euler step is applied.
+        The index for the time position in the solution.
 
     Returns
     -------
@@ -127,7 +148,7 @@ def crank_nicholson_step(u, A, B, j):
 
 
 
-def solve_pde(L, T, mx, mt, kappa, solver):
+def solve_pde(L, T, mx, mt, kappa, BC_type, BC, solver):
     '''
     Function that solves a 1D diffusion equation using the numerical scheme specified.
 
@@ -147,6 +168,12 @@ def solve_pde(L, T, mx, mt, kappa, solver):
 
     kappa : float
         The diffusion parameter for the PDE.
+
+    BC_type : string
+        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+
+    BC : function
+        The boundary condition as a callable function.
     
     solver : string
         The string defining the numerical method to use.
@@ -212,23 +239,23 @@ def solve_pde(L, T, mx, mt, kappa, solver):
     # initialise the solution matrix
     u = np.zeros((x.size, t.size))
 
-    # Get initial conditions
+    # Get initial conditions and apply
     for i in range(len(x)):
         u[i,0] = u_I(x[i], L)
 
     # Apply boundary condition for t=0
-    u[0,0] = 0
-    u[-1,0] = 0
+    u[0,0] = BC(0, 0)
+    u[-1,0] = BC(L, 0)
 
     for j in range(0, mt):
 
-        # Apply boundary conditions
-        u[0,j+1]=0
-        u[-1,j+1]=0
+        # Compute the BCs from provided function
+        time = t[j]
+        BCs = [BC(0, time), BC(L, time)]
         
-        # Carry out solver step, excluding the boundaries
+        # Carry out solver step, including the boundaries
         if not solver == crank_nicholson_step:
-            solver(u[1:-1], A, j)
+            solver(u, A, BCs, BC_type, lmbda, j)
         else:
             solver(u[1:-1], A, B, j)
     
@@ -240,15 +267,19 @@ def main():
 
     # Set problem parameters/functions
     kappa = 0.1   # diffusion constant
-    L=1      # length of spatial domain
-    T=0.5       # total time to solve for
+    L=2      # length of spatial domain
+    T=1       # total time to solve for
 
     # Set numerical parameters
     mx = 100     # number of gridpoints in space
     mt = 1000   # number of gridpoints in time
 
+    def homo_BC(x, t):
+        # Homogeneous BCs, always return 0
+        return 0
+
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, solver='feuler')
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
@@ -258,6 +289,16 @@ def main():
     xx = np.linspace(0,L,mx+1)
     from plots import plot_pde_specific_time
     plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact(xx, 0.3, kappa, L))
+
+
+    # Non-zero Dirichlet BCs
+    def non_homo_BC(x,t):
+        # Return the sin of the time
+        return 1
+
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, solver='feuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo')
+    plot_pde_specific_time(u, t, 0.5, L, 'Diffusion Solution non-homo')
 
     return 0
 
