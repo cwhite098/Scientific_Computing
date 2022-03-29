@@ -64,9 +64,6 @@ def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         u[0,j+1] += 2*lmbda*(L/u.shape[0])*(-BC(0,t[j]))
         u[-1,j+1] += 2*lmbda*(L/u.shape[0])*(BC(L,t[j]))
 
-        # NOT CORRECT - SEE VIDEO - use this to check other methods, CN and beuler disagree
-
-
     return u
 
 def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
@@ -136,7 +133,7 @@ def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
     Parameters
     ----------
     u : np.array
-        A numpy array containing the solution of the PDE, excluding the boundaries.
+        A numpy array containing the solution of the PDE, including the boundaries.
 
     A : scipy sparse matrix
         A scipy sparse matrix (tri-diagonal) that is used to calculate the next time step of the solution.
@@ -196,9 +193,28 @@ def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
 
 def get_matrix(lmbda, BC_type, u, solver):
     '''
-    Make a nice comment here
-    '''
+    Function that takes the numerical solver being used and the type of boundary conditions
+    and returns the matrix or matrices required to carry out the algorithm.
+    
+    Parameters
+    ----------
+    lmbda : float
+        The value of lambda computed from mx, mt and the diffusion coefficient.
 
+    BC_type : string
+        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+
+    u : np.array
+        A numpy array containing the solution of the PDE, including the boundaries.
+
+    solver : function
+        The step solver to be used. Forwards/Backwards Euler or Crank-Nicholson.
+
+    Returns
+    -------
+    A, B : np.array
+        Matrices required to carry out the numerical PDE approximations.
+    '''
     # Matrices for forward Euler
     if solver == forward_euler_step:
 
@@ -371,8 +387,8 @@ def main():
 
     # Set problem parameters/functions
     kappa = 0.1   # diffusion constant
-    L=2      # length of spatial domain
-    T=1      # total time to solve for
+    L=1      # length of spatial domain
+    T=0.5      # total time to solve for
 
     # Set numerical parameters
     mx = 100     # number of gridpoints in space
@@ -397,8 +413,14 @@ def main():
         y = np.exp(-kappa*(pi**2/L**2)*t)*np.sin(pi*x/L)
         return y
 
+    def u_exact_nhomo(x,t,kappa,L=1):
+        # Exact solution for homogeneous Neumann case (only for L=1)
+        y = (2/np.pi) - (4/(3*pi))*np.cos(2*np.pi*x)*(np.e**(-4*(np.pi**2) * kappa * t)) - (4/(15*pi))*np.cos(4*np.pi*x)*(np.e**(-16*(np.pi**2) * kappa * t))
+            
+        return y
+
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I, solver='feuler')
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
@@ -410,7 +432,7 @@ def main():
     plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact(xx, 0.3, kappa, L))
 
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', non_homo_BC, u_I, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', non_homo_BC, u_I, solver='feuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='cn')
@@ -419,6 +441,7 @@ def main():
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='feuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu f')
+    plot_pde_specific_time(u, t, 0.5, L, 'Specific Time Feuler Neumann Homo', u_exact_nhomo(xx,0.5,kappa,L=1))
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu b')
