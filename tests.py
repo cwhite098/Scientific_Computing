@@ -4,6 +4,7 @@ from ode_solvers import solve_ode
 from numerical_shooting import numerical_shooting
 from ode import *
 from pde_solvers import *
+import plots as p
 
 
 class TestODESolvers(unittest.TestCase):
@@ -122,6 +123,11 @@ class TestPDESolvers(unittest.TestCase):
             y = -1/(np.sin(np.sqrt(2/kappa)*L)) * np.sin(np.sqrt(2/kappa)*(x-L)) * np.e**(-2*t)
             return y
 
+        def u_exact_nhomo(x,t,kappa,L=1):
+            # Exact solution for homogeneous Neumann case (noly for L=1)
+            y = (2/np.pi) - (4/(3*pi))*np.cos(2*np.pi*x)*(np.e**(-4*(np.pi**2) * kappa * t)) - (4/(15*pi))*np.cos(4*np.pi*x)*(np.e**(-16*(np.pi**2) * kappa * t))
+            return y
+
         # Set problem parameters/functions
         self.kappa = 0.1   # diffusion constant
         self.L=1      # length of spatial domain
@@ -135,6 +141,7 @@ class TestPDESolvers(unittest.TestCase):
         xx = np.linspace(0,self.L,self.mx+1)
         self.exact_sol_dhomo = u_exact_dhomo(xx, self.T, self.kappa, self.L)
         self.exact_sol_dnonhomo = u_exact_dnonhomo(xx, self.T, self.kappa, self.L)
+        self.exact_sol_nhomo = u_exact_nhomo(xx, self.T, self.kappa, self.L)
 
     def u_I(self, x, L):
         # initial temperature distribution
@@ -189,6 +196,28 @@ class TestPDESolvers(unittest.TestCase):
         # Test for CN method w/ homogeneous Dirichlet BCs
         u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.non_homo_BC, self.u_I2, solver='cn')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dnonhomo).all() < 10**-4)
+
+    ######################################################################################################################
+
+    def test_method_forward_euler_nhomo(self):
+        # Test for feuler method w/ homogeneous neumann BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'neumann', self.homo_BC, self.u_I, solver='feuler')
+        bool = np.less(np.abs(u[:,-1] - self.exact_sol_nhomo), [10**-3]*len(self.exact_sol_nhomo))
+        self.assertTrue(bool.all())
+
+    def test_method_forward_euler_nhomo(self):
+        # Test for beuler method w/ homogeneous neumann BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'neumann', self.homo_BC, self.u_I, solver='beuler')
+        bool = np.less(np.abs(u[:,-1] - self.exact_sol_nhomo), [10**-4]*len(self.exact_sol_nhomo))
+        self.assertTrue(bool.all())
+
+    def test_method_forward_euler_nhomo(self):
+        # Test for cn method w/ homogeneous neumann BCs
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'neumann', self.homo_BC, self.u_I, solver='cn')
+        bool = np.less(np.abs(u[:,-1] - self.exact_sol_nhomo), [10**-4]*len(self.exact_sol_nhomo))
+        self.assertTrue(bool.all())
+        
+    ######################################################################################################################
 
 
 if __name__ == '__main__':
