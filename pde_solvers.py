@@ -303,10 +303,10 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
         The type of boundary conditions, either 'dirichlet' or 'neumann'.
 
     BC : function
-        The boundary condition as a callable function.
+        The boundary condition as a callable function. Must take 2 arguments, x and t.
 
     IC : function
-        The initial condition as a callable function.
+        The initial condition as a callable function. Must take 2 arguments, x and L.
     
     solver : string
         The string defining the numerical method to use.
@@ -339,8 +339,17 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
     u = np.zeros((x.size, t.size))
 
     # Check BC_type
-    # Check initial condition (is callable) + add test
-    # Check boundary conditions (is callable) + add test
+    BC_types = ['neumann', 'dirichlet', 'periodic']
+    if BC_type not in BC_types:
+        raise ValueError('Incorrect BC type specified!')
+
+    # Check initial condition
+    if not callable(IC):
+        raise ValueError('Initial condition specified is not a function!')
+
+    # Check boundary conditions
+    if not callable(BC):
+        raise ValueError('Boundary condition speicified is not a function!')
 
     if solver == 'feuler':
         # Checks if solver will be stable with this lambda value
