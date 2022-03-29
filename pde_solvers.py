@@ -5,44 +5,6 @@ from math import pi
 from scipy.sparse import diags, vstack, hstack, csr_matrix
 from scipy.sparse.linalg import spsolve
 
-def u_I(x, L):
-    # initial temperature distribution
-    y = (np.sin(pi*x/L))
-    return y
-
-def u_exact(x,t, kappa, L):
-    # the exact solution
-    y = np.exp(-kappa*(pi**2/L**2)*t)*np.sin(pi*x/L)
-    return y
-
-
-def tridiag(a, b, c, k1=-1, k2=0, k3=1):
-    '''
-    Function that constructs a tri-diagonal matrix for use in the Forward Euler PDE solver.
-
-    Parameters
-    ----------
-    a : np.array
-        A numpy array containing the values to assign to diagonal k1.
-
-    b : np.array
-        A numpy array containing the values to assign to diagonal k2.
-
-    c : np.array
-        A numpy array containing the values to assign to diagonal k3.
-
-    k1, k1, k3 : int
-        The diagonal to assign array a to. (k1=0 gives leading diagonal, k1=-1 gives the subdiagonal
-        and k1=1 gives the superdiagonal)
-
-    Returns
-    -------
-    A : np.array
-        A numpy array containing the constructed matrix.
-    '''
-    A = np.diag(a, k1) + np.diag(b, k2) + np.diag(c, k3)
-    return A
-
 
 
 def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
@@ -99,6 +61,11 @@ def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
     if BC_type == 'neumann':
 
         u[:,j+1] = A.dot(u[:,j])
+        u[0,j+1] += 2*lmbda*(L/u.shape[0])*(-BC(0,t[j]))
+        u[-1,j+1] += 2*lmbda*(L/u.shape[0])*(BC(L,t[j]))
+
+        # NOT CORRECT - SEE VIDEO - use this to check other methods, CN and beuler disagree
+
 
     return u
 
@@ -153,10 +120,11 @@ def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
     if BC_type == 'neumann':
         
         # Add effect over the boundary
-        u[0,j] += lmbda * 4 * L/u.shape[0]
-        u[-1,j] += lmbda * 4 * L/u.shape[0]
+        zeros1 = np.zeros(u.shape[0])
+        zeros1[0] += 2 * lmbda * L/u.shape[0] * BC(0,t[j])
+        zeros1[-1] += 2 * lmbda * L/u.shape[0]* BC(L,t[j])
         # Solve
-        u[:,j+1] = spsolve(A, u[:,j])
+        u[:,j+1] = spsolve(A, u[:,j] + zeros1)
 
     return u
 
@@ -213,7 +181,6 @@ def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
         # Solve for next time step
         u[:,j+1] = spsolve(A, R.transpose())
         
-
     if BC_type == 'neumann':
 
         R = B.dot(u[:,j])
@@ -228,6 +195,9 @@ def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
 
 
 def get_matrix(lmbda, BC_type, u, solver):
+    '''
+    Make a nice comment here
+    '''
 
     # Matrices for forward Euler
     if solver == forward_euler_step:
@@ -352,6 +322,10 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
     # initialise the solution matrix
     u = np.zeros((x.size, t.size))
 
+    # Check BC_type
+    # Check initial condition (is callable) + add test
+    # Check boundary conditions (is callable) + add test
+
     if solver == 'feuler':
         # Checks if solver will be stable with this lambda value
         if lmbda >0.5:
@@ -360,15 +334,12 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
             raise ValueError('Lambda less than 0! Wrong args.')
         solver = forward_euler_step
         A = get_matrix(lmbda, BC_type, u, solver)
-
     elif solver == 'beuler':
         solver = backward_euler_step
         A = get_matrix(lmbda, BC_type, u, solver)
-
     elif solver == 'cn':
         solver = crank_nicholson_step
         A, B = get_matrix(lmbda, BC_type, u, solver)
-
     else:
         raise ValueError('Solver specified does not exist!')
 
@@ -381,7 +352,6 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
     u[-1,0] = BC(L, 0)
 
     for j in range(0, mt):
-
         # Carry out solver step, including the boundaries
         if not solver == crank_nicholson_step:
             solver(u, A, t, L, BC, BC_type, lmbda, j)
@@ -389,8 +359,9 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
             solver(u, A, B, t, L, T, BC, BC_type, lmbda, j)
     
     # Add BCs for t=T (necessary for feuler)
-    u[0,-1] = BC(0,T)
-    u[-1,-1] = BC(L,T)
+    if BC_type == 'dirichlet':
+        u[0,-1] = BC(0,T)
+        u[-1,-1] = BC(L,T)
 
     return u, t
 
@@ -416,6 +387,16 @@ def main():
         # Return the sin of the time
         return np.sin(t)
 
+    def u_I(x, L):
+        # initial temperature distribution
+        y = (np.sin(pi*x/L))
+        return y
+
+    def u_exact(x,t, kappa, L):
+        # the exact solution
+        y = np.exp(-kappa*(pi**2/L**2)*t)*np.sin(pi*x/L)
+        return y
+
     # Get numerical solution
     u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='feuler')
 
@@ -429,8 +410,6 @@ def main():
     plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact(xx, 0.3, kappa, L))
 
 
-    
-
     u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', non_homo_BC, u_I, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
 
@@ -439,10 +418,13 @@ def main():
 
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='feuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map homo_neu f')
-
-    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', non_homo_BC, u_I, solver='feuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu f')
+
+    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='beuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu b')
+
+    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='cn')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu cn')
 
 
     return 0
