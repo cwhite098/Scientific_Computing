@@ -86,30 +86,17 @@ def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         # Carry out matrix multiplication
         u[1:-1,j+1] = A.dot(u[1:-1,j])
 
-        # Compute the BCs from provided function
-        time = t[j]
-        BCs = [BC(0, time), BC(L, time)]
-
-        # Add boundary conditions
-        pj = BCs[0]
-        qj = BCs[1]
+        # Get BCs @ t=j
+        pj = BC(0, t[j])
+        qj = BC(L, t[j])
         # Add the boundary itself
-        u[0,j] = BCs[0]
-        u[-1,j] = BCs[1]
+        u[0,j] = pj
+        u[-1,j] = qj
         # Add effect of boundary to inner rows
         u[1,j+1] += lmbda*pj
         u[-2,j+1] += lmbda*qj
 
     if BC_type == 'neumann':
-        # Augment the matrix A
-        zero_vecs = np.zeros(A.shape[1])
-        zero_vecs[0] = 2*lmbda
-        A = vstack((zero_vecs, A, np.flip(zero_vecs)))
-        aug_A = np.zeros((A.shape[0],1))
-        aug_A[0,0] = 1-2*lmbda
-        aug_A[1,0] = lmbda
-        A = hstack((aug_A, A, np.flip(aug_A)))
-        A = csr_matrix(A)
 
         u[:,j+1] = A.dot(u[:,j])
 
@@ -152,31 +139,28 @@ def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         The updated solution matrix.
     '''
     if BC_type == 'dirichlet':
-        # Get BCs for t_{j+1}
-        time = t[j+1]
-        BCs = [BC(0,time), BC(L,time)]
-
-        # Make vector to add to u at t=j before applying beuler method
-        BC_vec = np.zeros(u.shape[0]-2)
-        BC_vec[0] = lmbda*BCs[0]
-        BC_vec[-1] = lmbda*BCs[1]
-
+ 
+        # Get modifier for u
+        zeros1 = np.zeros(u.shape[0]-2)
+        zeros1[0] += lmbda * BC(0, t[j+1])
+        zeros1[-1] += lmbda * BC(L, t[j+1])
         # Solve the matrix equation
-        u[1:-1,j+1] = spsolve(A, u[1:-1,j] + BC_vec)
-
+        u[1:-1,j+1] = spsolve(A, u[1:-1,j] + zeros1)
         # Add the boundary conditions
-        u[0,j+1] = BCs[0]
-        u[-1,j+1] = BCs[1]
+        u[0,j+1] = BC(0, t[j+1])
+        u[-1,j+1] = BC(L, t[j+1])
 
     if BC_type == 'neumann':
-        # Look in bookmarks
-        # Make vector to add to u at t=j before applying beuler method
-        u=u
-
+        
+        # Add effect over the boundary
+        u[0,j] += lmbda * 4 * L/u.shape[0]
+        u[-1,j] += lmbda * 4 * L/u.shape[0]
+        # Solve
+        u[:,j+1] = spsolve(A, u[:,j])
 
     return u
 
-def crank_nicholson_step(u, A, B, t, L, BC, BC_type, lmbda, j):
+def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
     '''
     Function that carries out one step of the fcrank-nicholson method for approximating
     PDEs.
@@ -196,7 +180,10 @@ def crank_nicholson_step(u, A, B, t, L, BC, BC_type, lmbda, j):
         The array containing the times to solve the PDE at.
     
     L : float
-        The extent of the space doamin.
+        The extent of the space domain.
+
+    T : float
+        The extent of the time domain.
     
     BC : function
         The function that calculates the boundary conditions.
@@ -217,34 +204,92 @@ def crank_nicholson_step(u, A, B, t, L, BC, BC_type, lmbda, j):
     '''
     if BC_type == 'dirichlet':
         # https://mathonweb.com/resources/book4/Heat-Equation.pdf
-
-        time = t[j]
-
         R = B.dot(u[:,j])
         # Add BC at x=0 and x=L
-        R[0] = BC(0,time)
-        R[0] = BC(L,time)
+        R[0] = BC(0,t[j])
+        R[-1] = BC(L,t[j])
         R = csr_matrix(R)
 
-        # Augment the matrix A
-        zero_vecs = np.zeros(A.shape[1])
-        A = vstack((zero_vecs, A, zero_vecs))
-        aug_A = np.zeros((A.shape[0],1))
-        aug_A[0,0] = 1
-        aug_A[1,0] = -lmbda/2
-        A = hstack((aug_A, A, np.flip(aug_A)))
-        A = csr_matrix(A)
+        # Solve for next time step
+        u[:,j+1] = spsolve(A, R.transpose())
+        
+
+    if BC_type == 'neumann':
+
+        R = B.dot(u[:,j])
+        R[0] += T/u.shape[1]*(BC(0,t[j+1]) + BC(0,t[j]))
+        R[-1] += T/u.shape[1]*(BC(L,t[j+1]) + BC(L,t[j]))
+        R = csr_matrix(R)
 
         # Solve for next time step
-        sol = spsolve(A, R.transpose())
-        u[:,j+1] = sol
-        
-        # Add the boundary conditions
-        u[0,j+1] = BC(0, t[j+1])
-        u[-1,j+1] = BC(L, t[j+1])
+        u[:,j+1] = spsolve(A, R.transpose())
 
     return u
 
+
+def get_matrix(lmbda, BC_type, u, solver):
+
+    # Matrices for forward Euler
+    if solver == forward_euler_step:
+
+        if BC_type == 'dirichlet':
+            a = np.array([lmbda]*(u.shape[0]-3))
+            b = np.array([1-2*lmbda]*(u.shape[0]-2))
+
+        if BC_type == 'neumann':
+            a = np.array([lmbda]*(u.shape[0]-1))
+            b = np.array([1-2*lmbda]*(u.shape[0]))
+            a[-1] = a[-1]*2
+
+        # Get diagonal matrix
+        A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+        return A
+
+
+    if solver == backward_euler_step:
+
+        if BC_type == 'dirichlet':
+            a = np.array([-lmbda]*(u.shape[0]-3))
+            b = np.array([1+2*lmbda]*(u.shape[0]-2))
+
+        if BC_type == 'neumann':
+            a = np.array([-lmbda]*(u.shape[0]-1))
+            b = np.array([1+2*lmbda]*(u.shape[0]))
+            a[-1] = a[-1]*2
+
+        # Get diagonal matrix
+        A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+        return A
+
+    
+    if solver == crank_nicholson_step:
+
+        if BC_type == 'dirichlet':
+            # Construct the 2 tri-diags needed for the CN scheme
+            a = np.array([-(lmbda/2)]*(u.shape[0]-1))
+            b = np.array([1+lmbda]*(u.shape[0]))
+            b[0] = 1
+            b[-1] = 1
+            a[-1] = 0
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+
+            a = np.array([lmbda/2]*(u.shape[0]-1))
+            b = np.array([1-lmbda]*(u.shape[0]-0))
+            B = diags((a,b,a), (-1,0,1), format='csr')
+
+        if BC_type == 'neumann':
+            # Construct the 2 tri-diags needed for the CN scheme
+            a = np.array([-(lmbda/2)]*(u.shape[0]-1))
+            b = np.array([1+lmbda]*(u.shape[0]))
+            a[-1] = -lmbda
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+
+            a = np.array([lmbda/2]*(u.shape[0]-1))
+            b = np.array([1-lmbda]*(u.shape[0]-0))
+            a[-1] = lmbda
+            B = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+
+        return A, B
 
 
 def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
@@ -304,6 +349,9 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
     deltat = t[1] - t[0]            # gridspacing in t
     lmbda = kappa*deltat/(deltax**2)    # mesh fourier number
 
+    # initialise the solution matrix
+    u = np.zeros((x.size, t.size))
+
     if solver == 'feuler':
         # Checks if solver will be stable with this lambda value
         if lmbda >0.5:
@@ -311,35 +359,18 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
         if lmbda < 0:
             raise ValueError('Lambda less than 0! Wrong args.')
         solver = forward_euler_step
-
-        # Construct tri-diagonal matrix using lambda
-        a = np.array([lmbda]*(x.size-3))
-        b = np.array([1-2*lmbda]*(x.size-2))
-        A = diags((a,b,a), (-1,0,1), format='csr')
+        A = get_matrix(lmbda, BC_type, u, solver)
 
     elif solver == 'beuler':
         solver = backward_euler_step
-        # Construct tri-diag matrix for the numerical scheme
-        a = np.array([-lmbda]*(x.size-3))
-        b = np.array([1+2*lmbda]*(x.size-2))
-        A = diags((a,b,a), (-1,0,1), format='csr')
+        A = get_matrix(lmbda, BC_type, u, solver)
 
     elif solver == 'cn':
         solver = crank_nicholson_step
-        # Construct the 2 tri-diags needed for the CN scheme
-        a = np.array([-(lmbda/2)]*(x.size-3))
-        b = np.array([1+lmbda]*(x.size-2))
-        A = diags((a,b,a), (-1,0,1), format='csr')
-
-        a = np.array([lmbda/2]*(x.size-1))
-        b = np.array([1-lmbda]*(x.size-0))
-        B = diags((a,b,a), (-1,0,1), format='csr')
+        A, B = get_matrix(lmbda, BC_type, u, solver)
 
     else:
         raise ValueError('Solver specified does not exist!')
-
-    # initialise the solution matrix
-    u = np.zeros((x.size, t.size))
 
     # Get initial conditions and apply
     for i in range(len(x)):
@@ -355,7 +386,7 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
         if not solver == crank_nicholson_step:
             solver(u, A, t, L, BC, BC_type, lmbda, j)
         else:
-            solver(u, A, B, t, L, BC, BC_type, lmbda, j)
+            solver(u, A, B, t, L, T, BC, BC_type, lmbda, j)
     
     # Add BCs for t=T (necessary for feuler)
     u[0,-1] = BC(0,T)
@@ -380,8 +411,13 @@ def main():
         # Homogeneous BCs, always return 0
         return 0
 
+    # Non-zero Dirichlet BCs
+    def non_homo_BC(x,t):
+        # Return the sin of the time
+        return np.sin(t)
+
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='feuler')
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
@@ -393,16 +429,13 @@ def main():
     plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact(xx, 0.3, kappa, L))
 
 
-    # Non-zero Dirichlet BCs
-    def non_homo_BC(x,t):
-        # Return the sin of the time
-        return np.sin(t)
+    
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', non_homo_BC, u_I, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='cn')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo cn')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map diri non-homo cn')
 
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='feuler')
