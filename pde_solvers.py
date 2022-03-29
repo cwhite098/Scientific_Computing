@@ -64,6 +64,12 @@ def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         u[0,j+1] += 2*lmbda*(L/u.shape[0])*(-BC(0,t[j]))
         u[-1,j+1] += 2*lmbda*(L/u.shape[0])*(BC(L,t[j]))
 
+    if BC_type == 'periodic':
+        A = A.todense()
+        u[:, j+1] = A.dot(u[:, j])
+        # Wrap around boundary
+        #u[-1,j+1] = u[0,j+1]
+
     return u
 
 def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
@@ -221,15 +227,26 @@ def get_matrix(lmbda, BC_type, u, solver):
         if BC_type == 'dirichlet':
             a = np.array([lmbda]*(u.shape[0]-3))
             b = np.array([1-2*lmbda]*(u.shape[0]-2))
+            # Get diagonal matrix
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+            return A
 
         if BC_type == 'neumann':
             a = np.array([lmbda]*(u.shape[0]-1))
             b = np.array([1-2*lmbda]*(u.shape[0]))
             a[-1] = a[-1]*2
+            # Get diagonal matrix
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+            return A
 
-        # Get diagonal matrix
-        A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-        return A
+        if BC_type == 'periodic':
+            a = np.array([lmbda]*(u.shape[0]-2))
+            b = np.array([1-2*lmbda]*(u.shape[0]-1))
+            # Get diagonal matrix
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+            A[-1,0] = lmbda
+            A[0,-1] = lmbda
+            return A
 
 
     if solver == backward_euler_step:
@@ -300,10 +317,11 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
         The diffusion parameter for the PDE.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
 
     BC : function
         The boundary condition as a callable function. Must take 2 arguments, x and t.
+        Can be any function when using BCs of type 'periodic'.
 
     IC : function
         The initial condition as a callable function. Must take 2 arguments, x and L.
@@ -373,8 +391,11 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
         u[i,0] = IC(x[i], L)
 
     # Apply boundary condition for t=0
-    u[0,0] = BC(0, 0)
-    u[-1,0] = BC(L, 0)
+    if not BC_type == 'periodic':
+        u[0,0] = BC(0, 0)
+        u[-1,0] = BC(L, 0)
+    else:
+        u = u[0:-1,:]
 
     for j in range(0, mt):
         # Carry out solver step, including the boundaries
@@ -414,8 +435,14 @@ def main():
 
     def u_I(x, L):
         # initial temperature distribution
-        y = (np.sin(pi*x/L))
+        y = (np.cos(pi*x/L))
         return y
+
+    def u_I2(x, L):
+        if x<0.5:
+            return 10
+        else:
+            return 0
 
     def u_exact(x,t, kappa, L):
         # the exact solution
@@ -452,8 +479,8 @@ def main():
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu f')
     plot_pde_specific_time(u, t, 0.5, L, 'Specific Time Feuler Neumann Homo', u_exact_nhomo(xx,0.5,kappa,L=1))
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='beuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu b')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'periodic', homo_BC, u_I2, solver='feuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Periodic Feuler')
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='cn')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu cn')
