@@ -30,7 +30,7 @@ def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         The function that calculates the boundary conditions.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
     
     lmbda : float
         The value of lambda computed from mx, mt and the diffusion coefficient.
@@ -65,7 +65,6 @@ def forward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         u[-1,j+1] += 2*lmbda*(L/u.shape[0])*(BC(L,t[j]))
 
     if BC_type == 'periodic':
-        A = A.todense()
         u[:, j+1] = A.dot(u[:, j])
         # Wrap around boundary
         #u[-1,j+1] = u[0,j+1]
@@ -95,7 +94,7 @@ def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         The function that calculates the boundary conditions.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
     
     lmbda : float
         The value of lambda computed from mx, mt and the diffusion coefficient.
@@ -129,6 +128,9 @@ def backward_euler_step(u, A, t, L, BC, BC_type, lmbda, j):
         # Solve
         u[:,j+1] = spsolve(A, u[:,j] + zeros1)
 
+    if BC_type == 'periodic':
+        u[:, j+1] = spsolve(A, u[:, j])
+
     return u
 
 def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
@@ -160,7 +162,7 @@ def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
         The function that calculates the boundary conditions.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet' or 'neumann'.
+        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
     
     lmbda : float
         The value of lambda computed from mx, mt and the diffusion coefficient.
@@ -189,6 +191,13 @@ def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
         R = B.dot(u[:,j])
         R[0] += T/u.shape[1]*(BC(0,t[j+1]) + BC(0,t[j]))
         R[-1] += T/u.shape[1]*(BC(L,t[j+1]) + BC(L,t[j]))
+        R = csr_matrix(R)
+
+        # Solve for next time step
+        u[:,j+1] = spsolve(A, R.transpose())
+
+    if BC_type == 'periodic':
+        R = B.dot(u[:,j])
         R = csr_matrix(R)
 
         # Solve for next time step
@@ -229,7 +238,6 @@ def get_matrix(lmbda, BC_type, u, solver):
             b = np.array([1-2*lmbda]*(u.shape[0]-2))
             # Get diagonal matrix
             A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-            return A
 
         if BC_type == 'neumann':
             a = np.array([lmbda]*(u.shape[0]-1))
@@ -237,7 +245,6 @@ def get_matrix(lmbda, BC_type, u, solver):
             a[-1] = a[-1]*2
             # Get diagonal matrix
             A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-            return A
 
         if BC_type == 'periodic':
             a = np.array([lmbda]*(u.shape[0]-2))
@@ -246,7 +253,7 @@ def get_matrix(lmbda, BC_type, u, solver):
             A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
             A[-1,0] = lmbda
             A[0,-1] = lmbda
-            return A
+        return A
 
 
     if solver == backward_euler_step:
@@ -254,15 +261,25 @@ def get_matrix(lmbda, BC_type, u, solver):
         if BC_type == 'dirichlet':
             a = np.array([-lmbda]*(u.shape[0]-3))
             b = np.array([1+2*lmbda]*(u.shape[0]-2))
+            # Get diagonal matrix
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
 
         if BC_type == 'neumann':
             a = np.array([-lmbda]*(u.shape[0]-1))
             b = np.array([1+2*lmbda]*(u.shape[0]))
             a[-1] = a[-1]*2
+            # Get diagonal matrix
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
 
-        # Get diagonal matrix
-        A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+        if BC_type == 'periodic':
+            a = np.array([-lmbda]*(u.shape[0]-2))
+            b = np.array([1+2*lmbda]*(u.shape[0]-1))
+            # Get diagonal matrix
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+            A[-1,0] = -lmbda
+            A[0,-1] = -lmbda
         return A
+        
 
     
     if solver == crank_nicholson_step:
@@ -291,6 +308,20 @@ def get_matrix(lmbda, BC_type, u, solver):
             b = np.array([1-lmbda]*(u.shape[0]-0))
             a[-1] = lmbda
             B = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+
+        if BC_type == 'periodic':
+            # Construct the 2 tri-diags needed for the CN scheme
+            a = np.array([-(lmbda/2)]*(u.shape[0]-2))
+            b = np.array([1+lmbda]*(u.shape[0]-1))
+            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+            A[-1,0] = -lmbda/2
+            A[0,-1] = -lmbda/2
+
+            a = np.array([lmbda/2]*(u.shape[0]-2))
+            b = np.array([1-lmbda]*(u.shape[0]-1))
+            B = diags((a,b,a), (-1,0,1), format='csr')
+            B[-1,0] = lmbda/2
+            B[0,-1] = lmbda/2
 
         return A, B
 
@@ -435,7 +466,7 @@ def main():
 
     def u_I(x, L):
         # initial temperature distribution
-        y = (np.cos(pi*x/L))
+        y = (np.sin(pi*x/L))
         return y
 
     def u_I2(x, L):
@@ -479,8 +510,8 @@ def main():
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu f')
     plot_pde_specific_time(u, t, 0.5, L, 'Specific Time Feuler Neumann Homo', u_exact_nhomo(xx,0.5,kappa,L=1))
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'periodic', homo_BC, u_I2, solver='feuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Periodic Feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'periodic', homo_BC, u_I2, solver='cn')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Periodic cn')
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='cn')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu cn')
