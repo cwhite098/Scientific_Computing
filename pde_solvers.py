@@ -149,33 +149,26 @@ def crank_nicholson_step(u, A, B, t, L, T, BC, BC_type, lmbda, j):
     u : np.array
         The updated solution matrix.
     '''
-    if BC_type == 'dirichlet':
-        # https://mathonweb.com/resources/book4/Heat-Equation.pdf
-        R = B.dot(u[:,j])
-        # Add BC at x=0 and x=L
-        R[0] = BC(0,t[j])
-        R[-1] = BC(L,t[j])
-        R = csr_matrix(R)
-
-        # Solve for next time step
-        u[:,j+1] = spsolve(A, R.transpose())
-        
-    if BC_type == 'neumann':
-
-        R = B.dot(u[:,j])
-        R[0] += T/u.shape[1]*(BC(0,t[j+1]) + BC(0,t[j]))
-        R[-1] += T/u.shape[1]*(BC(L,t[j+1]) + BC(L,t[j]))
-        R = csr_matrix(R)
-
-        # Solve for next time step
-        u[:,j+1] = spsolve(A, R.transpose())
-
     if BC_type == 'periodic':
         R = B.dot(u[:,j])
         R = csr_matrix(R)
 
         # Solve for next time step
         u[:,j+1] = spsolve(A, R.transpose())
+    
+    else:
+
+        Lmat = lmbda*construct_L(u, j, BC, T, L, t, BC_type)
+
+        A1 = (identity(u.shape[0]) - 0.5*Lmat)
+        A2 = (identity(u.shape[0]) + 0.5*Lmat)
+
+        U_new = A2.dot(u[:,j])
+
+        U_new = boundary_operator(U_new, j, BC, T, L, t, BC_type)
+
+        u[:, j+1] = spsolve(A1, U_new)
+
 
     return u
 
@@ -221,7 +214,7 @@ def get_matrix(lmbda, BC_type, u, solver):
 
 
     if solver == backward_euler_step:
-        
+
         if BC_type == 'periodic':
             a = np.array([-lmbda]*(u.shape[0]-2))
             b = np.array([1+2*lmbda]*(u.shape[0]-1))
@@ -237,31 +230,6 @@ def get_matrix(lmbda, BC_type, u, solver):
     
     if solver == crank_nicholson_step:
 
-        if BC_type == 'dirichlet':
-            # Construct the 2 tri-diags needed for the CN scheme
-            a = np.array([-(lmbda/2)]*(u.shape[0]-1))
-            b = np.array([1+lmbda]*(u.shape[0]))
-            b[0] = 1
-            b[-1] = 1
-            a[-1] = 0
-            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-
-            a = np.array([lmbda/2]*(u.shape[0]-1))
-            b = np.array([1-lmbda]*(u.shape[0]-0))
-            B = diags((a,b,a), (-1,0,1), format='csr')
-
-        if BC_type == 'neumann':
-            # Construct the 2 tri-diags needed for the CN scheme
-            a = np.array([-(lmbda/2)]*(u.shape[0]-1))
-            b = np.array([1+lmbda]*(u.shape[0]))
-            a[-1] = -lmbda
-            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-
-            a = np.array([lmbda/2]*(u.shape[0]-1))
-            b = np.array([1-lmbda]*(u.shape[0]-0))
-            a[-1] = lmbda
-            B = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-
         if BC_type == 'periodic':
             # Construct the 2 tri-diags needed for the CN scheme
             a = np.array([-(lmbda/2)]*(u.shape[0]-2))
@@ -276,7 +244,12 @@ def get_matrix(lmbda, BC_type, u, solver):
             B[-1,0] = lmbda/2
             B[0,-1] = lmbda/2
 
+        else:
+            A = None
+            B = None
+
         return A, B
+        
 
 def boundary_operator(u, j, BC, T, L, t, BC_type):
 
