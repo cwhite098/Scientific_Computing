@@ -92,39 +92,18 @@ def backward_euler_step(u, A, t, L, T, BC, BC_type, lmbda, j):
     u : np.array
         The updated solution matrix.
     '''
-    if BC_type == 'dirichlet':
- 
-        # Get modifier for u
-        zeros1 = np.zeros(u.shape[0]-2)
-        zeros1[0] += lmbda * BC(0, t[j+1])
-        zeros1[-1] += lmbda * BC(L, t[j+1])
-        # Solve the matrix equation
-        u[1:-1,j+1] = spsolve(A, u[1:-1,j] + zeros1)
-        # Add the boundary conditions
-        u[0,j+1] = BC(0, t[j+1])
-        u[-1,j+1] = BC(L, t[j+1])
-
-    if BC_type == 'neumann':
-        
-        # Add effect over the boundary
-        zeros1 = np.zeros(u.shape[0])
-        zeros1[0] += 2 * lmbda * L/u.shape[0] * BC(0,t[j])
-        zeros1[-1] += 2 * lmbda * L/u.shape[0]* BC(L,t[j])
-        # Solve
-        u[:,j+1] = spsolve(A, u[:,j] + zeros1)
-
     if BC_type == 'periodic':
         u[:, j+1] = spsolve(A, u[:, j])
 
-    if BC_type == 'robin':
+    else:
 
         Lmat = lmbda*construct_L(u, j, BC, T, L, t, BC_type)
 
-        U_new = (identity(u.shape[0]) + Lmat).dot(u[:,j])
+        U_new = boundary_operator(u[:, j], j, BC, T, L, t, BC_type)
+        
+        A = (identity(u.shape[0]) - Lmat)
 
-        u[:, j+1] = boundary_operator(U_new, j, BC, T, L, t, BC_type)
-
-
+        u[:, j+1] = spsolve(A, U_new)
 
     return u
 
@@ -235,25 +214,14 @@ def get_matrix(lmbda, BC_type, u, solver):
             A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
             A[-1,0] = lmbda
             A[0,-1] = lmbda
+        else:
+            A = None
 
         return A
 
 
     if solver == backward_euler_step:
-
-        if BC_type == 'dirichlet':
-            a = np.array([-lmbda]*(u.shape[0]-3))
-            b = np.array([1+2*lmbda]*(u.shape[0]-2))
-            # Get diagonal matrix
-            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-
-        if BC_type == 'neumann':
-            a = np.array([-lmbda]*(u.shape[0]-1))
-            b = np.array([1+2*lmbda]*(u.shape[0]))
-            a[-1] = a[-1]*2
-            # Get diagonal matrix
-            A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
-
+        
         if BC_type == 'periodic':
             a = np.array([-lmbda]*(u.shape[0]-2))
             b = np.array([1+2*lmbda]*(u.shape[0]-1))
@@ -261,6 +229,8 @@ def get_matrix(lmbda, BC_type, u, solver):
             A = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
             A[-1,0] = -lmbda
             A[0,-1] = -lmbda
+        else:
+            A=None
         return A
         
 
@@ -327,8 +297,8 @@ def boundary_operator(u, j, BC, T, L, t, BC_type):
         Bn[-1] += (-2*delta_T/h)*gammaL
 
     if BC_type == 'dirichlet':
-        gamma0 = BC(0,t[j])
-        gammaL = BC(L,t[j])
+        gamma0 = BC(0,t[j+1])
+        gammaL = BC(L,t[j+1])
         Bn[0] = gamma0 
         Bn[-1] = gammaL
 
@@ -555,13 +525,13 @@ def main():
         return y
 
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='beuler')
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map')
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'robin', robin_BC, u_I, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'robin', robin_BC, u_I, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Robin (both homo)')
 
 
