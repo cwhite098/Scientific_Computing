@@ -24,7 +24,7 @@ def forward_euler_step(u, t, L, BC, BC_type, lmbda, j):
         The function that calculates the boundary conditions.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
+        The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
     
     lmbda : float
         The value of lambda computed from mx, mt and the diffusion coefficient.
@@ -68,7 +68,7 @@ def backward_euler_step(u, t, L, BC, BC_type, lmbda, j):
         The function that calculates the boundary conditions.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
+        The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
     
     lmbda : float
         The value of lambda computed from mx, mt and the diffusion coefficient.
@@ -312,7 +312,7 @@ def construct_L(u, j, robin_BC, L, t, BC_type):
 
 
 
-def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
+def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, RHS, solver):
     '''
     Function that solves a 1D diffusion equation using the numerical scheme specified.
 
@@ -334,7 +334,7 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
         The diffusion parameter for the PDE.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
+        The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
 
     BC : function
         The boundary condition as a callable function. Must take 2 arguments, x and t.
@@ -342,6 +342,9 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
 
     IC : function
         The initial condition as a callable function. Must take 2 arguments, x and L.
+
+    RHS : function
+        The function containing the RHS of the PDE.
     
     solver : string
         The string defining the numerical method to use.
@@ -407,12 +410,14 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
     # Remove one boundary for periodic BCs
     if BC_type == 'periodic':
         u = u[0:-1,:]
+        x = x[0:-1]
         # BCs have no effect
         BC = lambda x,t:0
 
     for j in range(0, mt):
         # Carry out solver step, including the boundaries
-        solver(u, t, L, BC, BC_type, lmbda, j)
+        u = solver(u, t, L, BC, BC_type, lmbda, j)
+        u[:,j+1] += deltat*RHS(x, t[j])
 
     return u, t
 
@@ -433,6 +438,12 @@ def robin_BC(x, t):
     gamma = alpha(t)*dirichlet_u(t) + beta(t)*neumann_u(t)
 
     return gamma, alpha(t)
+
+def RHS1(x, t):
+    rhs = np.zeros(len(x))
+    rhs += 1
+
+    return rhs
 
 
 def main():
@@ -477,14 +488,16 @@ def main():
             
         return y
 
+    homo_RHS = lambda x,t : 0
+
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, 'periodic', non_homo_BC, u_I2, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I2, homo_RHS, solver='beuler')
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map')
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I, RHS1, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Robin (both homo)')
 
 
