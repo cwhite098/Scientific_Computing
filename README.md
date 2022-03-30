@@ -39,11 +39,13 @@ For solving PDEs, the following methods are implememted:
 
 These methods can be applied to PDEs of the following types:
  - 2nd Order Diffusive PDEs with
+    - One spatial dimension,
     - Homogeneous Dirichlet Boundary Conditions,
     - Non-homogeneous Dirichlet Boundary Conditions,
     - Homogeneous Neuamnn Boundary Conditions,
     - Non-homogeneous Neumann Boundary Conditions,
-    - One spatial dimension,
+    - Periodic Boundary Conditions,
+    - Robin Boundary Conditions,
     - and more to come...
 
 
