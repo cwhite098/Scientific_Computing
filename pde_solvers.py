@@ -1,13 +1,10 @@
-from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from math import pi
-from scipy.sparse import diags, vstack, hstack, csr_matrix, identity
+from scipy.sparse import diags, identity
 from scipy.sparse.linalg import spsolve
 
-
-
-def forward_euler_step(u, t, L, T, BC, BC_type, lmbda, j):
+def forward_euler_step(u, t, L, BC, BC_type, lmbda, j):
     '''
     Function that carries out one step of the forward Euler numerical method for approximating
     PDEs.
@@ -40,18 +37,18 @@ def forward_euler_step(u, t, L, T, BC, BC_type, lmbda, j):
     u : np.array
         The updated solution matrix.
     '''
-    Lmat = lmbda*construct_L(u, j, BC, T, L, t, BC_type)
+    Lmat = lmbda*construct_L(u, j, BC, L, t, BC_type)
 
     U_new = (identity(u.shape[0]) + Lmat).dot(u[:,j])
 
     if BC_type == 'dirichlet':
-        u[:, j+1] = boundary_operator(U_new, j+1, BC, T, L, t, BC_type)
+        u[:, j+1] = boundary_operator(U_new, j+1, BC, L, t, BC_type)
     else:
-        u[:, j+1] = boundary_operator(U_new, j, BC, T, L, t, BC_type)
+        u[:, j+1] = boundary_operator(U_new, j, BC, L, t, BC_type)
 
     return u
 
-def backward_euler_step(u, t, L, T, BC, BC_type, lmbda, j):
+def backward_euler_step(u, t, L, BC, BC_type, lmbda, j):
     '''
     Function that carries out one step of the backward Euler numerical method for approximating
     PDEs.
@@ -86,11 +83,11 @@ def backward_euler_step(u, t, L, T, BC, BC_type, lmbda, j):
     '''
 
     if BC_type == 'dirichlet':
-        Lmat = lmbda*construct_L(u, j, BC, T, L, t, BC_type)
+        Lmat = lmbda*construct_L(u, j, BC, L, t, BC_type)
     else:
-        Lmat = lmbda*construct_L(u, j+1, BC, T, L, t, BC_type)
+        Lmat = lmbda*construct_L(u, j+1, BC, L, t, BC_type)
 
-    U_new = boundary_operator(u[:, j], j+1, BC, T, L, t, BC_type)
+    U_new = boundary_operator(u[:, j], j+1, BC, L, t, BC_type)
     
     A = (identity(u.shape[0]) - Lmat)
 
@@ -98,7 +95,7 @@ def backward_euler_step(u, t, L, T, BC, BC_type, lmbda, j):
 
     return u
 
-def crank_nicholson_step(u, t, L, T, BC, BC_type, lmbda, j):
+def crank_nicholson_step(u, t, L, BC, BC_type, lmbda, j):
     '''
     Function that carries out one step of the fcrank-nicholson method for approximating
     PDEs.
@@ -107,12 +104,6 @@ def crank_nicholson_step(u, t, L, T, BC, BC_type, lmbda, j):
     ----------
     u : np.array
         A numpy array containing the solution of the PDE, including the boundaries.
-
-    A : scipy sparse matrix
-        A scipy sparse matrix (tri-diagonal) that is used to calculate the next time step of the solution.
-
-    B : scipy sparse matrix
-        A scipy sparse matrix (tri-diagonal) that is used to multiply the previous step of the solution.
 
     t : np.array
         The array containing the times to solve the PDE at.
@@ -127,7 +118,7 @@ def crank_nicholson_step(u, t, L, T, BC, BC_type, lmbda, j):
         The function that calculates the boundary conditions.
 
     BC_type : string
-        The type of boundary conditions, either 'dirichlet', 'neumann' or 'periodic'.
+        The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
     
     lmbda : float
         The value of lambda computed from mx, mt and the diffusion coefficient.
@@ -143,26 +134,26 @@ def crank_nicholson_step(u, t, L, T, BC, BC_type, lmbda, j):
 
     if BC_type == 'dirichlet':
 
-        Lmat = lmbda*construct_L(u, j, BC, T, L, t, BC_type)
+        Lmat = lmbda*construct_L(u, j, BC, L, t, BC_type)
 
         A1 = (identity(u.shape[0]) - 0.5*Lmat)
         A2 = (identity(u.shape[0]) + 0.5*Lmat)
 
         U_new = A2.dot(u[:,j])
 
-        U_new = boundary_operator(U_new, j+1, BC, T, L, t, BC_type)
+        U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type)
 
         u[:, j+1] = spsolve(A1, U_new)
 
     else:
-        Lmat1 = lmbda*construct_L(u, j, BC, T, L, t, BC_type)
+        Lmat1 = lmbda*construct_L(u, j, BC, L, t, BC_type)
         A1 = (identity(u.shape[0]) + 0.5*Lmat1)
 
         U_new = A1.dot(u[:,j])
 
-        U_new = boundary_operator(U_new, j, BC, T, L, t, BC_type, CN=True)
+        U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True)
 
-        Lmat2 = lmbda*construct_L(u, j+1, BC, T, L, t, BC_type)
+        Lmat2 = lmbda*construct_L(u, j+1, BC, L, t, BC_type)
         A2 = (identity(u.shape[0]) - 0.5*Lmat2)
         
         u[:,j+1] = spsolve(A2, U_new)
@@ -170,73 +161,137 @@ def crank_nicholson_step(u, t, L, T, BC, BC_type, lmbda, j):
     return u
         
 
-def boundary_operator(u, j, BC, T, L, t, BC_type, CN = False):
+def boundary_operator(u, j, BC, L, t, BC_type, CN = False):
+    '''
+    Function that applies the effect of the boundary conditions to the solution vector.
 
-    delta_T = t[1]-t[0]
-    h = L/len(u)
+    Parameters
+    ----------
+    u : np.array
+        Array containing the solution at timestep j.
+
+    j : int
+        The current step in the algorithm.
+
+    BC : function
+        The function containing the BC for the PDE..
+    
+    L : float
+        The extent of the space domain.
+
+    t : np.array
+        The times at which the PDE is evaluated.
+
+    BC_type : string
+        The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
+
+    CN : bool
+        Bool that must be set to true when the method being using is the Crank-Nicholson method.
+
+    Returns
+    -------
+    Bn : np.array
+        The solution vector with the effect of the boundary conditions applied.
+    '''
+    delta_T = t[1]-t[0] # step size in time
+    h = L/len(u) # step size in space
     Bn = u
 
+    if BC_type == 'dirichlet':
+        # Get BC output
+        gamma0 = BC(0,t[j])
+        gammaL = BC(L,t[j])
+        # Apply BC to solution vector
+        Bn[0] = gamma0 
+        Bn[-1] = gammaL
+
     if BC_type == 'robin':
+        # Get BC output
         gamma0, alpha0 = BC(0,t[j])
         gammaL, alphaL = BC(L,t[j])
 
         if CN:
+            # Get BC for t+1
             gamma02, alpha0 = BC(0,t[j+1])
             gammaL2, alphaL = BC(L,t[j+1])
-
+            # Apply BC to solution
             Bn[0] += (-delta_T/h)*(gamma0 + gamma02)
             Bn[-1] += (-delta_T/h)*(gammaL + gammaL2)
 
         else:
+            # Apply BC to solution
             Bn[0] += (-2*delta_T/h)*gamma0 
             Bn[-1] += (-2*delta_T/h)*gammaL
 
     if BC_type == 'neumann':
+        # Get BC output
         gamma0 = BC(0,t[j])
         gammaL = BC(L,t[j])
 
         if CN:
+            # Get BC for t+1
             gamma02 = BC(0,t[j+1])
             gammaL2 = BC(L,t[j+1])
-
+            # Apply BC to solution
             Bn[0] += (-delta_T/h)*(gamma0 + gamma02)
             Bn[-1] += (-delta_T/h)*(gammaL + gammaL2)
 
         else:
+            # Apply BC to solution
             Bn[0] += (-2*delta_T/h)*gamma0 
             Bn[-1] += (-2*delta_T/h)*gammaL
 
-    if BC_type == 'dirichlet':
-        gamma0 = BC(0,t[j])
-        gammaL = BC(L,t[j])
-        Bn[0] = gamma0 
-        Bn[-1] = gammaL
-
     return Bn
 
-def construct_L(u, j, robin_BC, T, L, t, BC_type):
+def construct_L(u, j, robin_BC, L, t, BC_type):
+    '''
+    Function that constructs the matrix, L, for all of the methods and BC types. L is
+    tridiagonal in all cases but the periodic BC case.
 
+    Parameters
+    ----------
+    u : np.array
+        The array containing the solution in both the time and space dimensions.
+
+    j : int
+        The current step in the algorithm.
+
+    robin_BC : function
+        The function containing the BC for the PDE. Always pass the BC to this function, 
+        however, it is only used in the robin BC case.
+    
+    L : float
+        The extent of the space domain.
+
+    t : np.array
+        The times at which the PDE is evaluated.
+
+    BC_type : string
+        The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
+
+    Returns
+    -------
+    L : csr sparse matrix
+        The matrix constructed to be used in the step functions.
+    '''
     h = L/u.shape[0]
-
     a = np.ones(u.shape[0]-1)
-
-    if BC_type == 'periodic':
-        a = np.ones(u.shape[0]-1)
-        b = np.array([-2]*u.shape[0])
+    b = np.array([-2]*u.shape[0])
     
     if BC_type == 'dirichlet':
+        # Modifies L for dirichlet BCs
         a[-1] = 0
         b = np.array([-2]*u.shape[0])
         b[0] = 0
         b[-1] = 0
 
-    if BC_type == 'neumann':
-
+    elif BC_type == 'neumann':
+        # Modifies L for Neumann BCs
         a[-1] = 2
         b = np.array([-2]*u.shape[0])
 
-    if BC_type == 'robin':
-
+    elif BC_type == 'robin':
+        # Modifies L for robin BCs
         a[-1] = 2
 
         gamma0, alpha0 = robin_BC(0,t[j])
@@ -247,14 +302,13 @@ def construct_L(u, j, robin_BC, T, L, t, BC_type):
         b[-1] = -2*(1+h*alphaL)
 
     L = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+
     if BC_type == 'periodic':
+        # Modifies L for periodic BCs
         L[-1,0] = 1
         L[0,-1] = 1
 
-
     return L
-
-
 
 
 
@@ -353,11 +407,12 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, solver):
     # Remove one boundary for periodic BCs
     if BC_type == 'periodic':
         u = u[0:-1,:]
+        # BCs have no effect
         BC = lambda x,t:0
 
     for j in range(0, mt):
         # Carry out solver step, including the boundaries
-        solver(u, t, L, T, BC, BC_type, lmbda, j)
+        solver(u, t, L, BC, BC_type, lmbda, j)
 
     return u, t
 
@@ -446,8 +501,8 @@ def main():
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map diri non-homo cn')
 
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='feuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu f')
+    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='beuler')
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map homo_neu b')
     plot_pde_specific_time(u, t, 0.5, L, 'Specific Time Feuler Neumann Homo', u_exact_nhomo(xx,0.5,kappa,L=1))
 
     u,t = solve_pde(L, T, mx, mt, kappa, 'periodic', homo_BC, u_I2, solver='cn')
