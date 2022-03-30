@@ -4,7 +4,7 @@ from math import pi
 from scipy.sparse import diags, identity
 from scipy.sparse.linalg import spsolve
 
-def forward_euler_step(u, t, L, BC, BC_type, lmbda, j):
+def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
     '''
     Function that carries out one step of the forward Euler numerical method for approximating
     PDEs.
@@ -37,7 +37,7 @@ def forward_euler_step(u, t, L, BC, BC_type, lmbda, j):
     u : np.array
         The updated solution matrix.
     '''
-    Lmat = lmbda*construct_L(u, j, BC, L, t, BC_type)
+    Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
 
     U_new = (identity(u.shape[0]) + Lmat).dot(u[:,j])
 
@@ -48,7 +48,7 @@ def forward_euler_step(u, t, L, BC, BC_type, lmbda, j):
 
     return u
 
-def backward_euler_step(u, t, L, BC, BC_type, lmbda, j):
+def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
     '''
     Function that carries out one step of the backward Euler numerical method for approximating
     PDEs.
@@ -83,9 +83,9 @@ def backward_euler_step(u, t, L, BC, BC_type, lmbda, j):
     '''
 
     if BC_type == 'dirichlet':
-        Lmat = lmbda*construct_L(u, j, BC, L, t, BC_type)
+        Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
     else:
-        Lmat = lmbda*construct_L(u, j+1, BC, L, t, BC_type)
+        Lmat = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
 
     U_new = boundary_operator(u[:, j], j+1, BC, L, t, BC_type)
     
@@ -95,7 +95,7 @@ def backward_euler_step(u, t, L, BC, BC_type, lmbda, j):
 
     return u
 
-def crank_nicholson_step(u, t, L, BC, BC_type, lmbda, j):
+def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa):
     '''
     Function that carries out one step of the fcrank-nicholson method for approximating
     PDEs.
@@ -134,7 +134,7 @@ def crank_nicholson_step(u, t, L, BC, BC_type, lmbda, j):
 
     if BC_type == 'dirichlet':
 
-        Lmat = lmbda*construct_L(u, j, BC, L, t, BC_type)
+        Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
 
         A1 = (identity(u.shape[0]) - 0.5*Lmat)
         A2 = (identity(u.shape[0]) + 0.5*Lmat)
@@ -146,14 +146,14 @@ def crank_nicholson_step(u, t, L, BC, BC_type, lmbda, j):
         u[:, j+1] = spsolve(A1, U_new)
 
     else:
-        Lmat1 = lmbda*construct_L(u, j, BC, L, t, BC_type)
+        Lmat1 = construct_L(u, j, BC, L, t, x, kappa, BC_type)
         A1 = (identity(u.shape[0]) + 0.5*Lmat1)
 
         U_new = A1.dot(u[:,j])
 
         U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True)
 
-        Lmat2 = lmbda*construct_L(u, j+1, BC, L, t, BC_type)
+        Lmat2 = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
         A2 = (identity(u.shape[0]) - 0.5*Lmat2)
         
         u[:,j+1] = spsolve(A2, U_new)
@@ -194,7 +194,7 @@ def boundary_operator(u, j, BC, L, t, BC_type, CN = False):
         The solution vector with the effect of the boundary conditions applied.
     '''
     delta_T = t[1]-t[0] # step size in time
-    h = L/len(u) # step size in space
+    h = L/(len(u)-1) # step size in space
     Bn = u
 
     if BC_type == 'dirichlet':
@@ -243,7 +243,7 @@ def boundary_operator(u, j, BC, L, t, BC_type, CN = False):
 
     return Bn
 
-def construct_L(u, j, robin_BC, L, t, BC_type):
+def construct_L(u, j, robin_BC, L, t, x, kappa, BC_type):
     '''
     Function that constructs the matrix, L, for all of the methods and BC types. L is
     tridiagonal in all cases but the periodic BC case.
@@ -274,21 +274,28 @@ def construct_L(u, j, robin_BC, L, t, BC_type):
     L : csr sparse matrix
         The matrix constructed to be used in the step functions.
     '''
-    h = L/u.shape[0]
+    h = x[1] - x[0]
+    deltat = t[1] - t[0]
+
+    lmbda1 = deltat/(h**2) * kappa(x + h/2)
+    lmbda1 = lmbda1[1:]
+    lmbda2 = deltat/(h**2) * (kappa(x+h/2) + kappa(x-h/2))
+    lmbda3 = deltat/(h**2) * kappa(x-h/2)
+    lmbda3 = lmbda3[:-1]
+
+
     a = np.ones(u.shape[0]-1)
-    b = np.array([-2]*u.shape[0])
+    b = np.array([-1]*u.shape[0])
     
     if BC_type == 'dirichlet':
         # Modifies L for dirichlet BCs
         a[-1] = 0
-        b = np.array([-2]*u.shape[0])
         b[0] = 0
         b[-1] = 0
 
     elif BC_type == 'neumann':
         # Modifies L for Neumann BCs
         a[-1] = 2
-        b = np.array([-2]*u.shape[0])
 
     elif BC_type == 'robin':
         # Modifies L for robin BCs
@@ -297,22 +304,23 @@ def construct_L(u, j, robin_BC, L, t, BC_type):
         gamma0, alpha0 = robin_BC(0,t[j])
         gammaL, alphaL = robin_BC(L,t[j])
 
-        b = np.array([-2]*u.shape[0])
         b[0] = -2*(1+h*alpha0)
         b[-1] = -2*(1+h*alphaL)
 
-    L = diags((a,b,np.flip(a)), (-1,0,1), format='csr')
+    test = lmbda1*a
+
+    L = diags((lmbda1*a, lmbda2*b, lmbda3*np.flip(a)), (-1,0,1), format='csr')
 
     if BC_type == 'periodic':
         # Modifies L for periodic BCs
-        L[-1,0] = 1
-        L[0,-1] = 1
+        L[-1,0] = lmbda1[0]*1
+        L[0,-1] = lmbda3[-1]*1
 
     return L
 
 
 
-def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, RHS, solver):
+def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa = lambda x:np.ones(len(x))/10):
     '''
     Function that solves a 1D diffusion equation using the numerical scheme specified.
 
@@ -371,7 +379,10 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, RHS, solver):
     t = np.linspace(0, T, mt+1)     # mesh points in time
     deltax = x[1] - x[0]            # gridspacing in x
     deltat = t[1] - t[0]            # gridspacing in t
-    lmbda = kappa*deltat/(deltax**2)    # mesh fourier number
+    #lmbda = kappa*deltat/(deltax**2)    # mesh fourier number
+
+    kappas = kappa(x)
+    lmbdas = kappas*deltat/(deltax**2)
 
     # initialise the solution matrix
     u = np.zeros((x.size, t.size))
@@ -391,9 +402,9 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, RHS, solver):
 
     if solver == 'feuler':
         # Checks if solver will be stable with this lambda value
-        if lmbda >0.5:
+        if (lmbdas > 0.5).any():
             raise ValueError('Lambda greater than 0.5! Consider reducing mx.')
-        if lmbda < 0:
+        if (lmbdas < 0).any():
             raise ValueError('Lambda less than 0! Wrong args.')
         solver = forward_euler_step
     elif solver == 'beuler':
@@ -416,7 +427,7 @@ def solve_pde(L, T, mx, mt, kappa, BC_type, BC, IC, RHS, solver):
 
     for j in range(0, mt):
         # Carry out solver step, including the boundaries
-        u = solver(u, t, L, BC, BC_type, lmbda, j)
+        u = solver(u, t, x, L, BC, BC_type, j, kappa)
         u[:,j+1] += deltat*RHS(x, t[j])
 
     return u, t
@@ -491,13 +502,13 @@ def main():
     homo_RHS = lambda x,t : 0
 
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I2, homo_RHS, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, 'dirichlet', homo_BC, u_I2, solver='feuler', RHS = homo_RHS, kappa = lambda x:np.ones(len(x))*np.sin(np.pi*x)/10)
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map')
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', homo_BC, u_I, RHS1, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, 'dirichlet', homo_BC, u_I, solver='beuler', RHS = RHS1, kappa = lambda x:np.ones(len(x))/10)
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Robin (both homo)')
 
 
@@ -507,21 +518,21 @@ def main():
     plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact(xx, 0.3, kappa, L))
 
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', non_homo_BC, u_I, solver='feuler')
+    u,t = solve_pde(L, T, mx, mt, 'neumann', non_homo_BC, u_I, solver='feuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'dirichlet', non_homo_BC, u_I, solver='cn')
+    u,t = solve_pde(L, T, mx, mt, 'dirichlet', non_homo_BC, u_I, solver='cn')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map diri non-homo cn')
 
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='beuler')
+    u,t = solve_pde(L, T, mx, mt, 'neumann', homo_BC, u_I, solver='beuler')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map homo_neu b')
     plot_pde_specific_time(u, t, 0.5, L, 'Specific Time Feuler Neumann Homo', u_exact_nhomo(xx,0.5,kappa,L=1))
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'periodic', homo_BC, u_I2, solver='cn')
+    u,t = solve_pde(L, T, mx, mt, 'periodic', homo_BC, u_I2, solver='cn')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Periodic cn')
 
-    u,t = solve_pde(L, T, mx, mt, kappa, 'neumann', homo_BC, u_I, solver='cn')
+    u,t = solve_pde(L, T, mx, mt, 'neumann', homo_BC, u_I, solver='cn')
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu cn')
 
 
