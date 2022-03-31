@@ -57,11 +57,11 @@ Some existing Python packages are required to use this package. These include:
 
 A requirements.txt [here](requirements.txt), is also provided for easy install of the required packages. This can be carried out using the following command:
 
-'''bash
+```bash
 
 $ pip install -r requirements.txt
 
-'''
+```
 
 
 
