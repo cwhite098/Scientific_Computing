@@ -12,25 +12,30 @@ def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
     Parameters
     ----------
     u : np.array
-        A numpy array containing the solution of the PDE, excluding the boundaries.
+        A numpy array containing the solution of the PDE, including the boundaries.
 
     t : np.array
         The array containing the times to solve the PDE at.
+
+    x : np.array
+        The array containing the spatial coordinates to evaluate the PDE at.
     
     L : float
-        The extent of the space doamin.
+        The extent of the space domain.
     
     BC : function
         The function that calculates the boundary conditions.
 
     BC_type : string
         The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
-    
-    lmbda : float
-        The value of lambda computed from mx, mt and the diffusion coefficient.
 
     j : int
         The index for the time position in the solution.
+
+    kappa : function
+        The function containing the Diffusion rate across the space domain. The default returns a
+        value of 0.1 for all x.
+        Make sure this function returns a vector with length mx+1.
 
     Returns
     -------
@@ -56,25 +61,30 @@ def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
     Parameters
     ----------
     u : np.array
-        A numpy array containing the solution of the PDE, excluding the boundaries.
+        A numpy array containing the solution of the PDE, including the boundaries.
 
     t : np.array
         The array containing the times to solve the PDE at.
+
+    x : np.array
+        The array containing the spatial coordinates to evaluate the PDE at.
     
     L : float
-        The extent of the space doamin.
+        The extent of the space domain.
     
     BC : function
         The function that calculates the boundary conditions.
 
     BC_type : string
         The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
-    
-    lmbda : float
-        The value of lambda computed from mx, mt and the diffusion coefficient.
 
     j : int
         The index for the time position in the solution.
+
+    kappa : function
+        The function containing the Diffusion rate across the space domain. The default returns a
+        value of 0.1 for all x.
+        Make sure this function returns a vector with length mx+1.
 
     Returns
     -------
@@ -107,24 +117,26 @@ def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa):
 
     t : np.array
         The array containing the times to solve the PDE at.
+
+    x : np.array
+        The array containing the spatial coordinates to evaluate the PDE at.
     
     L : float
         The extent of the space domain.
-
-    T : float
-        The extent of the time domain.
     
     BC : function
         The function that calculates the boundary conditions.
 
     BC_type : string
         The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
-    
-    lmbda : float
-        The value of lambda computed from mx, mt and the diffusion coefficient.
 
     j : int
         The index for the time position in the solution.
+
+    kappa : function
+        The function containing the Diffusion rate across the space domain. The default returns a
+        value of 0.1 for all x.
+        Make sure this function returns a vector with length mx+1.
 
     Returns
     -------
@@ -266,6 +278,14 @@ def construct_L(u, j, robin_BC, L, t, x, kappa, BC_type):
     t : np.array
         The times at which the PDE is evaluated.
 
+    x : np.array
+        The spatial coordinates at which the PDE is evaluated.
+
+    kappa : function
+        The function containing the Diffusion rate across the space domain. The default returns a
+        value of 0.1 for all x.
+        Make sure this function returns a vector with length mx+1.
+
     BC_type : string
         The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
 
@@ -338,9 +358,6 @@ def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa =
     mt : int
         The resolution in the time dimension to use for the solution.
 
-    kappa : float
-        The diffusion parameter for the PDE.
-
     BC_type : string
         The type of boundary conditions, either 'dirichlet', 'neumann', 'robin' or 'periodic'.
 
@@ -351,14 +368,19 @@ def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa =
     IC : function
         The initial condition as a callable function. Must take 2 arguments, x and L.
 
-    RHS : function
-        The function containing the RHS of the PDE.
-    
     solver : string
         The string defining the numerical method to use.
         'feuler' uses the forward Euler scheme.
         'beuler' uses the backwards Euler scheme.
         'cn' uses the Crank-Nicholson scheme.
+
+    RHS : function
+        The function containing the RHS of the PDE. The default is the homogeneous case, F(x,t) = 0.
+
+    kappa : function
+        The function containing the Diffusion rate across the space domain. The default returns a
+        value of 0.1 for all x.
+        Make sure this function returns a vector with length mx+1.
 
     Returns
     -------
@@ -428,6 +450,7 @@ def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa =
     for j in range(0, mt):
         # Carry out solver step, including the boundaries
         u = solver(u, t, x, L, BC, BC_type, j, kappa)
+        # Apply the effect of the RHS function
         u[:,j+1] += deltat*RHS(x, t[j])
 
     return u, t
@@ -455,7 +478,6 @@ def RHS1(x, t):
     rhs += 1
 
     return rhs
-
 
 def main():
 
@@ -516,25 +538,6 @@ def main():
     xx = np.linspace(0,L,mx+1)
     from plots import plot_pde_specific_time
     plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', u_exact(xx, 0.3, kappa, L))
-
-
-    u,t = solve_pde(L, T, mx, mt, 'neumann', non_homo_BC, u_I, solver='feuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map non-homo f')
-
-    u,t = solve_pde(L, T, mx, mt, 'dirichlet', non_homo_BC, u_I, solver='cn')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map diri non-homo cn')
-
-
-    u,t = solve_pde(L, T, mx, mt, 'neumann', homo_BC, u_I, solver='beuler')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map homo_neu b')
-    plot_pde_specific_time(u, t, 0.5, L, 'Specific Time Feuler Neumann Homo', u_exact_nhomo(xx,0.5,kappa,L=1))
-
-    u,t = solve_pde(L, T, mx, mt, 'periodic', homo_BC, u_I2, solver='cn')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Periodic cn')
-
-    u,t = solve_pde(L, T, mx, mt, 'neumann', homo_BC, u_I, solver='cn')
-    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map nonhomo_neu cn')
-
 
     return 0
 
