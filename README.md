@@ -56,8 +56,9 @@ Some existing Python packages are required to use this package. These include:
  - Matplotlib.
 
 A requirements.txt [here](requirements.txt), is also provided for easy install of the required packages. This can be carried out using the following command:
-
+'''console
 $ pip install -r requirements.txt
+'''
 
 
 
