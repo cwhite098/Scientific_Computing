@@ -170,53 +170,53 @@ class TestPDESolvers(unittest.TestCase):
     ######################################################################################################################
     def test_method_forward_euler_dhomo(self):
         # Test for feuler method w/ homogeneous Dirichlet BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, self.homo_RHS, solver='feuler')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.homo_BC, self.u_I, solver='feuler')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dhomo).all() < 10**-4)
 
     def test_method_backward_euler_dhomo(self):
         # Test for beuler method w/ homogeneous Dirichlet BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, self.homo_RHS, solver='beuler')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.homo_BC, self.u_I, solver='beuler')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dhomo).all() < 10**-4)
 
     def test_method_crank_nicholson_dhomo(self):
         # Test for CN method w/ homogeneous Dirichlet BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.homo_BC, self.u_I, self.homo_RHS, solver='cn')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.homo_BC, self.u_I, solver='cn')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dhomo).all() < 10**-4)
         
     ######################################################################################################################
 
     def test_method_forward_euler_dnonhomo(self):
         # Test for feuler method w/ non-homogeneous Dirichlet BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.non_homo_BC, self.u_I2, self.homo_RHS, solver='feuler')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.non_homo_BC, self.u_I2, solver='feuler')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dnonhomo).all() < 10**-4)
 
     def test_method_backward_euler_dnonhomo(self):
         # Test for beuler method w/ non-homogeneous Dirichlet BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.non_homo_BC, self.u_I2, self.homo_RHS, solver='beuler')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.non_homo_BC, self.u_I2, solver='beuler')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dnonhomo).all() < 10**-4)
 
     def test_method_crank_nicholson_dnonhomo(self):
         # Test for CN method w/ non-homogeneous Dirichlet BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'dirichlet', self.non_homo_BC, self.u_I2, self.homo_RHS, solver='cn')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.non_homo_BC, self.u_I2, solver='cn')
         self.assertTrue(np.abs(u[:,-1] - self.exact_sol_dnonhomo).all() < 10**-4)
 
     ######################################################################################################################
 
     def test_method_forward_euler_nhomo(self):
         # Test for feuler method w/ homogeneous neumann BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'neumann', self.homo_BC, self.u_I, self.homo_RHS, solver='feuler')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'neumann', self.homo_BC, self.u_I,solver='feuler')
         bool = np.less(np.abs(u[:,-1] - self.exact_sol_nhomo), [10**-3]*len(self.exact_sol_nhomo))
         self.assertTrue(bool.all())
 
     def test_method_backward_euler_nhomo(self):
         # Test for beuler method w/ homogeneous neumann BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'neumann', self.homo_BC, self.u_I, self.homo_RHS, solver='beuler')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'neumann', self.homo_BC, self.u_I,solver='beuler')
         bool = np.less(np.abs(u[:,-1] - self.exact_sol_nhomo), [10**-3]*len(self.exact_sol_nhomo))
         self.assertTrue(bool.all())
 
     def test_method_crank_nicholson_nhomo(self):
         # Test for cn method w/ homogeneous neumann BCs
-        u,t = solve_pde(self.L, self.T, self.mx, self.mt, self.kappa, 'neumann', self.homo_BC, self.u_I, self.homo_RHS, solver='cn')
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'neumann', self.homo_BC, self.u_I,solver='cn')
         bool = np.less(np.abs(u[:,-1] - self.exact_sol_nhomo), [10**-3]*len(self.exact_sol_nhomo))
         self.assertTrue(bool.all())
         
