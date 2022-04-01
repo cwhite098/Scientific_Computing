@@ -37,6 +37,13 @@ def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='l
         The function containing the Diffusion rate across the space domain. The default returns a
         value of 0.1 for all x.
         Make sure this function returns a vector with length mx+1.
+    
+    RHS : function
+        The RHS of the diffusive PDE. If linear it must take to arguments (x, t). If
+        non-linear, it must take 3, (u,x,t).
+
+    linearity : string
+        The linearity of the RHS function, either 'linear' or 'nonlinear'.
 
     Returns
     -------
@@ -46,15 +53,15 @@ def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='l
     deltat = t[1] - t[0]
 
     Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
-
     U_new = (identity(u.shape[0]) + Lmat).dot(u[:,j])
 
+    # Apply RHS
     if linearity == 'linear':
         U_new += deltat*RHS(x, t[j])
     elif linearity == 'nonlinear':
         U_new += deltat*RHS(u[:,j], x, t[j])
 
-
+    # Apply boundaries
     if BC_type == 'dirichlet':
         u[:, j+1] = boundary_operator(U_new, j+1, BC, L, t, BC_type)
     else:
@@ -95,6 +102,13 @@ def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='
         value of 0.1 for all x.
         Make sure this function returns a vector with length mx+1.
 
+    RHS : function
+        The RHS of the diffusive PDE. If linear it must take to arguments (x, t). If
+        non-linear, it must take 3, (u,x,t).
+
+    linearity : string
+        The linearity of the RHS function, either 'linear' or 'nonlinear'.
+
     Returns
     -------
     u : np.array
@@ -103,18 +117,16 @@ def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='
     deltat = t[1] - t[0]
 
     if BC_type == 'dirichlet':
-        Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
+        Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type) # matrix for dirichlet case
     else:
-        Lmat = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
+        Lmat = construct_L(u, j+1, BC, L, t, x, kappa, BC_type) # matrix for neumann/robin case
 
     if linearity == 'linear':
 
         U_new =  u[:,j] + deltat*RHS(x, t[j+1])
-
         U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type)
     
         A = (identity(u.shape[0]) - Lmat)
-
         u[:, j+1] = spsolve(A, U_new)
 
 
@@ -122,22 +134,18 @@ def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='
 
         uj = u[:,j]
         x0 = uj
-        #deltat = t[1] - t[0]
+        deltat = t[1] - t[0]
 
         def root_finding_problem(x0, uj, deltat):
 
-            Lmat = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
-
             U_new =  uj + deltat*RHS(x0, x, t[j+1])
-
             U_new = boundary_operator(uj, j+1, BC, L, t, BC_type)
 
             A = (identity(u.shape[0]) - Lmat)
-
             x0 = U_new - A.dot(x0) 
-
             return x0
         
+        # Solve for next step in solution
         u[:, j+1] = fsolve(root_finding_problem, x0, (uj, deltat))
 
     return u
@@ -175,6 +183,13 @@ def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity=
         value of 0.1 for all x.
         Make sure this function returns a vector with length mx+1.
 
+    RHS : function
+        The RHS of the diffusive PDE. If linear it must take to arguments (x, t). If
+        non-linear, it must take 3, (u,x,t).
+
+    linearity : string
+        The linearity of the RHS function, either 'linear' or 'nonlinear'.
+
     Returns
     -------
     u : np.array
@@ -184,60 +199,50 @@ def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity=
         if BC_type == 'dirichlet':
 
             Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
-
-            A1 = (identity(u.shape[0]) - 0.5*Lmat)
-            A2 = (identity(u.shape[0]) + 0.5*Lmat)
-
-            U_new = A2.dot(u[:,j])
-
-            U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type)
-
-            u[:, j+1] = spsolve(A1, U_new)
-
-        else:
-            Lmat1 = construct_L(u, j, BC, L, t, x, kappa, BC_type)
-            A1 = (identity(u.shape[0]) + 0.5*Lmat1)
+            A1 = (identity(u.shape[0]) + 0.5*Lmat) # matrix to multiply uj
+            A2 = (identity(u.shape[0]) - 0.5*Lmat) # matrix to mulitply uj+1
 
             U_new = A1.dot(u[:,j])
+            U_new += (deltat/2)*(RHS(x, t[j]) + RHS(x, t[j+1])) # apply RHS
 
-            U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True)
+            U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type) # apply boundary
+            u[:, j+1] = spsolve(A2, U_new)
 
+        else: # neumann or robin case
+
+            Lmat1 = construct_L(u, j, BC, L, t, x, kappa, BC_type)
+            A1 = (identity(u.shape[0]) + 0.5*Lmat1) # matrix to multiply uj
             Lmat2 = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
-            A2 = (identity(u.shape[0]) - 0.5*Lmat2)
-            
+            A2 = (identity(u.shape[0]) - 0.5*Lmat2) # matrix to mulitply uj+1
+    
+            U_new = A1.dot(u[:,j])
+            U_new += (deltat/2)*(RHS(x, t[j]) + RHS(x, t[j+1])) # apply RHS
+
+            U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True) #apply boundary
             u[:,j+1] = spsolve(A2, U_new)
 
     elif linearity == 'nonlinear':
 
-        '''
-        rework this to use the equation in the notes
-        make 1 RHS argument that either takes 3 (u,x,t) or 2 (x,t) arguments for the linear or the nonlinear cases
-        Use fsolve for nonlinear and usual mat mul for linear case.
-        
-        '''
         uj = u[:,j]
         x0 = uj
         deltat = t[1] - t[0]
 
-        Lmat1 = 0.5 * construct_L(u, j, BC, L, t, x, kappa, BC_type)
-        Lmat2 = 0.5 * construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
+        Lmat1 = construct_L(u, j, BC, L, t, x, kappa, BC_type)
+        A1 = (identity(u.shape[0]) + 0.5*Lmat1) # matrix to multiply uj
+        Lmat2 = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
+        A2 = (identity(u.shape[0]) - 0.5*Lmat2) # matrix to mulitply uj+1
 
-        def root_finding_problem(x0, uj):
+        def root_finding_problem(x0, uj, deltat):
 
-            U_new = (0.5*Lmat1.dot(uj)+uj + 
-            
-                            0.5*Lmat2.dot(x0))
-            
+            U_new = A1.dot(uj)
             U_new += (deltat/2)*(RHS(uj, x, t[j]) + RHS(x0, x, t[j+1]))
+            U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True)
 
-
-            
-            U_new -= x0
-
+            U_new -= A2.dot(x0)
             return U_new
 
-        u[:, j+1] = fsolve(root_finding_problem, x0, (uj))
-
+        # Use fsolve to solve the for the next solution step
+        u[:, j+1] = fsolve(root_finding_problem, x0, (uj, deltat))
 
     return u
         
@@ -443,11 +448,17 @@ def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa =
 
     RHS : function
         The function containing the RHS of the PDE. The default is the homogeneous case, F(x,t) = 0.
+        For a linear RHS, the function must take 2 argument (x,t) and for a non-linear RHS, the function
+        must take 3 arguments, (u,x,t).
 
     kappa : function
         The function containing the Diffusion rate across the space domain. The default returns a
         value of 0.1 for all x.
         Make sure this function returns a vector with length mx+1.
+
+    linearity : string
+        The linearity of the RHS function, either 'linear' or 'nonlinear'.
+
 
     Returns
     -------
