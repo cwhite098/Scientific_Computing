@@ -158,7 +158,7 @@ def plot_pde_space_time_solution(u, L, T, title, show=True):
     '''
     # Get the extent of the space and time domains so the plots reflect
     # the values provided to the pde solver.
-    extent = [0 , T, 0 , L]
+    extent = [0 , T, L, 0]
     plt.imshow(u, aspect='auto', extent=extent)
     
     # Set axis labels and title
