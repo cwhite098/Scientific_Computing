@@ -127,6 +127,15 @@ class TestPDESolvers(unittest.TestCase):
             # Exact solution for homogeneous Neumann case (noly for L=1)
             y = (2/np.pi) - (4/(3*pi))*np.cos(2*np.pi*x)*(np.e**(-4*(np.pi**2) * kappa * t)) - (4/(15*pi))*np.cos(4*np.pi*x)*(np.e**(-16*(np.pi**2) * kappa * t))
             return y
+        
+        def u_exact_nonlinear(xx, t_plot, kappa=1, beta = 1):
+            # Exact solution for non-linear problem
+            sum = 0
+            for n in range(100):
+                n+=1
+                sum += ((((-1)**n) - 1)/n) * np.e**(-t_plot*(((n**2) * (np.pi**2)) - 0.1)) * np.sin(n*np.pi*xx)
+            sol = (-2/np.pi)*sum
+            return sol
 
         # Set problem parameters/functions
         self.kappa = 0.1   # diffusion constant
@@ -142,6 +151,7 @@ class TestPDESolvers(unittest.TestCase):
         self.exact_sol_dhomo = u_exact_dhomo(xx, self.T, self.kappa, self.L)
         self.exact_sol_dnonhomo = u_exact_dnonhomo(xx, self.T, self.kappa, self.L)
         self.exact_sol_nhomo = u_exact_nhomo(xx, self.T, self.kappa, self.L)
+        self.exact_sol_nonlinear = u_exact_nonlinear(xx, self.T)
 
     def u_I(self, x, L):
         # initial temperature distribution
@@ -221,6 +231,23 @@ class TestPDESolvers(unittest.TestCase):
         self.assertTrue(bool.all())
         
     ######################################################################################################################
+
+    def test_method_crank_nicholson_nonlinear(self):
+        # Test for CN and non-linear RHS
+        def RHS_f(u, x, t):
+            return u
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.homo_BC, lambda x,L:1, solver='cn', RHS = RHS_f, kappa = lambda x:np.ones(len(x)), linearity='nonlinear')
+        bool = np.less(np.abs(u[:,-1] - self.exact_sol_nonlinear), [10**-1]*len(self.exact_sol_nhomo))
+        self.assertTrue(bool.all())
+
+    def test_method_beuler_nonlinear(self):
+        # Test for beuler and non-linear RHS
+        def RHS_f(u, x, t):
+            return u
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', self.homo_BC, lambda x,L:1, solver='beuler', RHS = RHS_f, kappa = lambda x:np.ones(len(x)), linearity='nonlinear')
+        bool = np.less(np.abs(u[:,-1] - self.exact_sol_nonlinear), [10**-3]*len(self.exact_sol_nhomo))
+        self.assertTrue(bool.all())
+
 
 
 if __name__ == '__main__':
