@@ -195,6 +195,7 @@ def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity=
     u : np.array
         The updated solution matrix.
     '''
+    deltat = t[1] - t[0]
     if linearity == 'linear':
         if BC_type == 'dirichlet':
 
@@ -398,8 +399,8 @@ def construct_L(u, j, robin_BC, L, t, x, kappa, BC_type):
         gamma0, alpha0 = robin_BC(0,t[j])
         gammaL, alphaL = robin_BC(L,t[j])
 
-        b[0] = -2*(1+h*alpha0)
-        b[-1] = -2*(1+h*alphaL)
+        b[0] = -1*(1+h*alpha0)
+        b[-1] = -1*(1+h*alphaL)
 
     L = diags((lmbda1*a, lmbda2*b, lmbda3*np.flip(a)), (-1,0,1), format='csr')
 
@@ -544,10 +545,10 @@ def robin_BC(x, t):
     alpha = lambda t : 1
 
     # Effect of neumann
-    beta = lambda t : 0
+    beta = lambda t : 1
 
     # The dirichlet and neumann effects on the boundary
-    dirichlet_u = lambda t : 1-np.sin(t)
+    dirichlet_u = lambda t : 0
     neumann_u = lambda t : 0
 
     # Combination of all effects
@@ -569,7 +570,7 @@ def main():
     # Set problem parameters/functions
     kappa = 0.1   # diffusion constant
     L=1      # length of spatial domain
-    T=2    # total time to solve for
+    T=0.5    # total time to solve for
 
     # Set numerical parameters
     mx = 100     # number of gridpoints in space
@@ -602,14 +603,15 @@ def main():
 
     def u_exact_nhomo(x,t,kappa,L=1):
         # Exact solution for homogeneous Neumann case (only for L=1)
-        y = (2/np.pi) - (4/(3*pi))*np.cos(2*np.pi*x)*(np.e**(-4*(np.pi**2) * kappa * t)) - (4/(15*pi))*np.cos(4*np.pi*x)*(np.e**(-16*(np.pi**2) * kappa * t))
+        y = (2/np.pi) - (4/(3*pi))*np.cos(2*np.pi*x)*(np.e**(-4*(np.pi**2) * kappa * t)) 
+        - (4/(15*pi))*np.cos(4*np.pi*x)*(np.e**(-16*(np.pi**2) * kappa * t))
             
         return y
 
     homo_RHS = lambda x,t : 0
 
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, 'dirichlet', homo_BC, u_I2, solver='beuler', RHS = logistic_RHS, kappa = lambda x:np.ones(len(x))/10, linearity='nonlinear')
+    u,t = solve_pde(L, T, mx, mt, 'robin', robin_BC, u_I2, solver='feuler', kappa = lambda x:np.ones(len(x))/10)
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
