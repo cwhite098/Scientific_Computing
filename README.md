@@ -1,4 +1,4 @@
-# Scientific Computing - Numerical Methods for ODEs and PDEs
+# Scientific Computing - Numerical Toolbox for ODEs and PDEs
 
 This package contains various methods for solving ODEs, PDEs as well as numerical shooting and numerical continuation.
 
@@ -57,7 +57,11 @@ Some existing Python packages are required to use this package. These include:
 
 A requirements.txt [here](requirements.txt), is also provided for easy install of the required packages. This can be carried out using the following command:
 
+```bash
+
 $ pip install -r requirements.txt
+
+```
 
 
 
@@ -81,3 +85,15 @@ Tests for the code in this package can be found in the tests.py file [here](test
 Christopher White
 
 gd19031@bristol.ac.uk
+
+## Citation
+```
+@software{Chris_White_SciComp,
+  author = {White, Christopher},
+  month = {3},
+  title = {{Scientific Computing - Numerical Toolbox for ODEs and PDEs}},
+  url = {https://github.com/cwhite098/Scientific_Computing},
+  version = {1},
+  year = {2022}
+}
+```
