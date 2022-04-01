@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 from math import pi
 from scipy.sparse import diags, identity
 from scipy.sparse.linalg import spsolve
+from scipy.optimize import fsolve
 
-def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
+def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='linear'):
     '''
     Function that carries out one step of the forward Euler numerical method for approximating
     PDEs.
@@ -42,9 +43,17 @@ def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
     u : np.array
         The updated solution matrix.
     '''
+    deltat = t[1] - t[0]
+
     Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
 
     U_new = (identity(u.shape[0]) + Lmat).dot(u[:,j])
+
+    if linearity == 'linear':
+        U_new += deltat*RHS(x, t[j])
+    elif linearity == 'nonlinear':
+        U_new += deltat*RHS(u[:,j], x, t[j])
+
 
     if BC_type == 'dirichlet':
         u[:, j+1] = boundary_operator(U_new, j+1, BC, L, t, BC_type)
@@ -53,7 +62,7 @@ def forward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
 
     return u
 
-def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
+def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='linear'):
     '''
     Function that carries out one step of the backward Euler numerical method for approximating
     PDEs.
@@ -91,21 +100,49 @@ def backward_euler_step(u, t, x, L, BC, BC_type, j, kappa):
     u : np.array
         The updated solution matrix.
     '''
+    deltat = t[1] - t[0]
 
     if BC_type == 'dirichlet':
         Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
     else:
         Lmat = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
 
-    U_new = boundary_operator(u[:, j], j+1, BC, L, t, BC_type)
-    
-    A = (identity(u.shape[0]) - Lmat)
+    if linearity == 'linear':
 
-    u[:, j+1] = spsolve(A, U_new)
+        U_new =  u[:,j] + deltat*RHS(x, t[j+1])
+
+        U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type)
+    
+        A = (identity(u.shape[0]) - Lmat)
+
+        u[:, j+1] = spsolve(A, U_new)
+
+
+    elif linearity == 'nonlinear':
+
+        uj = u[:,j]
+        x0 = uj
+        #deltat = t[1] - t[0]
+
+        def root_finding_problem(x0, uj, deltat):
+
+            Lmat = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
+
+            U_new =  uj + deltat*RHS(x0, x, t[j+1])
+
+            U_new = boundary_operator(uj, j+1, BC, L, t, BC_type)
+
+            A = (identity(u.shape[0]) - Lmat)
+
+            x0 = U_new - A.dot(x0) 
+
+            return x0
+        
+        u[:, j+1] = fsolve(root_finding_problem, x0, (uj, deltat))
 
     return u
 
-def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa):
+def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity='linear'):
     '''
     Function that carries out one step of the fcrank-nicholson method for approximating
     PDEs.
@@ -143,32 +180,64 @@ def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa):
     u : np.array
         The updated solution matrix.
     '''
+    if linearity == 'linear':
+        if BC_type == 'dirichlet':
 
-    if BC_type == 'dirichlet':
+            Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
 
-        Lmat = construct_L(u, j, BC, L, t, x, kappa, BC_type)
+            A1 = (identity(u.shape[0]) - 0.5*Lmat)
+            A2 = (identity(u.shape[0]) + 0.5*Lmat)
 
-        A1 = (identity(u.shape[0]) - 0.5*Lmat)
-        A2 = (identity(u.shape[0]) + 0.5*Lmat)
+            U_new = A2.dot(u[:,j])
 
-        U_new = A2.dot(u[:,j])
+            U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type)
 
-        U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type)
+            u[:, j+1] = spsolve(A1, U_new)
 
-        u[:, j+1] = spsolve(A1, U_new)
+        else:
+            Lmat1 = construct_L(u, j, BC, L, t, x, kappa, BC_type)
+            A1 = (identity(u.shape[0]) + 0.5*Lmat1)
 
-    else:
-        Lmat1 = construct_L(u, j, BC, L, t, x, kappa, BC_type)
-        A1 = (identity(u.shape[0]) + 0.5*Lmat1)
+            U_new = A1.dot(u[:,j])
 
-        U_new = A1.dot(u[:,j])
+            U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True)
 
-        U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True)
+            Lmat2 = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
+            A2 = (identity(u.shape[0]) - 0.5*Lmat2)
+            
+            u[:,j+1] = spsolve(A2, U_new)
 
-        Lmat2 = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
-        A2 = (identity(u.shape[0]) - 0.5*Lmat2)
+    elif linearity == 'nonlinear':
+
+        '''
+        rework this to use the equation in the notes
+        make 1 RHS argument that either takes 3 (u,x,t) or 2 (x,t) arguments for the linear or the nonlinear cases
+        Use fsolve for nonlinear and usual mat mul for linear case.
         
-        u[:,j+1] = spsolve(A2, U_new)
+        '''
+        uj = u[:,j]
+        x0 = uj
+        deltat = t[1] - t[0]
+
+        Lmat1 = 0.5 * construct_L(u, j, BC, L, t, x, kappa, BC_type)
+        Lmat2 = 0.5 * construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
+
+        def root_finding_problem(x0, uj):
+
+            U_new = (0.5*Lmat1.dot(uj)+uj + 
+            
+                            0.5*Lmat2.dot(x0))
+            
+            U_new += (deltat/2)*(RHS(uj, x, t[j]) + RHS(x0, x, t[j+1]))
+
+
+            
+            U_new -= x0
+
+            return U_new
+
+        u[:, j+1] = fsolve(root_finding_problem, x0, (uj))
+
 
     return u
         
@@ -327,8 +396,6 @@ def construct_L(u, j, robin_BC, L, t, x, kappa, BC_type):
         b[0] = -2*(1+h*alpha0)
         b[-1] = -2*(1+h*alphaL)
 
-    test = lmbda1*a
-
     L = diags((lmbda1*a, lmbda2*b, lmbda3*np.flip(a)), (-1,0,1), format='csr')
 
     if BC_type == 'periodic':
@@ -340,7 +407,7 @@ def construct_L(u, j, robin_BC, L, t, x, kappa, BC_type):
 
 
 
-def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa = lambda x:np.ones(len(x))/10):
+def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa = lambda x:np.ones(len(x))/10, linearity='linear'):
     '''
     Function that solves a 1D diffusion equation using the numerical scheme specified.
 
@@ -446,12 +513,16 @@ def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa =
         x = x[0:-1]
         # BCs have no effect
         BC = lambda x,t:0
+    if BC_type == 'dirichlet':
+        u[0,0] = BC(0,0)
+        u[-1,0] = BC(L,0)
 
     for j in range(0, mt):
+
         # Carry out solver step, including the boundaries
-        u = solver(u, t, x, L, BC, BC_type, j, kappa)
+        u = solver(u, t, x, L, BC, BC_type, j, kappa, RHS, linearity=linearity)
         # Apply the effect of the RHS function
-        u[:,j+1] += deltat*RHS(x, t[j])
+        #u[:,j+1] += deltat*RHS(x, t[j])
 
     return u, t
 
@@ -479,12 +550,15 @@ def RHS1(x, t):
 
     return rhs
 
+def logistic_RHS(u, x, t):
+    return -u
+
 def main():
 
     # Set problem parameters/functions
     kappa = 0.1   # diffusion constant
     L=1      # length of spatial domain
-    T=0.5      # total time to solve for
+    T=2    # total time to solve for
 
     # Set numerical parameters
     mx = 100     # number of gridpoints in space
@@ -524,13 +598,13 @@ def main():
     homo_RHS = lambda x,t : 0
 
     # Get numerical solution
-    u,t = solve_pde(L, T, mx, mt, 'dirichlet', homo_BC, u_I2, solver='feuler', RHS = homo_RHS, kappa = lambda x:np.ones(len(x))*np.sin(np.pi*x)/10)
+    u,t = solve_pde(L, T, mx, mt, 'dirichlet', homo_BC, u_I2, solver='beuler', RHS = logistic_RHS, kappa = lambda x:np.ones(len(x))/10, linearity='nonlinear')
 
     # Plot solution in space and time
     from plots import plot_pde_space_time_solution
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map')
 
-    u,t = solve_pde(L, T, mx, mt, 'dirichlet', homo_BC, u_I, solver='beuler', RHS = RHS1, kappa = lambda x:np.ones(len(x))/10)
+    u,t = solve_pde(L, T, mx, mt, 'dirichlet', homo_BC, u_I, solver='cn', RHS = homo_RHS, kappa = lambda x:x/(x*10))
     plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map Robin (both homo)')
 
 
