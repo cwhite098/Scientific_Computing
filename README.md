@@ -42,12 +42,18 @@ These methods can be applied to PDEs of the following types:
     - One spatial dimension,
     - Homogeneous Dirichlet Boundary Conditions,
     - Non-homogeneous Dirichlet Boundary Conditions,
-    - Homogeneous Neuamnn Boundary Conditions,
+    - Homogeneous Neumann Boundary Conditions,
     - Non-homogeneous Neumann Boundary Conditions,
     - Periodic Boundary Conditions,
     - Robin Boundary Conditions,
-    - and more to come...
+    - Non-homogeneous and homoegeneous RHS functions,
+    - Linear and non-linear RHS functions,
+    - Variable diffusion coefficients.
 
+
+### Plotting
+Also included are functions that can be used to easily visualise the outputs of the numerical methods implemented.
+Examples of their usage can be found in the example notebooks, detailed below.
 
 ## Requirements
 Some existing Python packages are required to use this package. These include:
@@ -63,16 +69,15 @@ $ pip install -r requirements.txt
 
 ```
 
-
-
 ## Examples
 Examples for the use of all of the above methods can be found as Python Notebooks in the examples folder. This includes,
  - Examples for solving ODEs [here](examples/solving_odes.ipynb),
  - Examples for numerical shooting [here](examples/numerical_shooting.ipynb),
  - Examples for numerical continuation [here](examples/numerical_continuation.ipynb),
- - more to come.
+ - Examples for solving PDEs [here](examples/solving_pdes.ipynb).
 
 These examples can be viewed straight in this repo, or downloaded where they can be run and tinkered with.
+Examples can also be found by running the corresponding .py files as a script.
 
 
 ## Testing
