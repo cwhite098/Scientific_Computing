@@ -247,7 +247,87 @@ class TestPDESolvers(unittest.TestCase):
         bool = np.less(np.abs(u[:,-1] - self.exact_sol_nonlinear), [10**-3]*len(self.exact_sol_nhomo))
         self.assertTrue(bool.all())
 
+    ######################################################################################################################
 
+    def test_robin_BC(self):
+        def robin_BC(x, t):
+            '''
+            Function containing the Robin boundary condition.
+            When using Robin boundary conditions the BC function must return alpha, the effect of the dirichlet
+            condition as well as gamma, the total effect at the boundary.
+            '''
+            # Effect of dirichlet
+            alpha = lambda t : 1
+            # Effect of neumann
+            beta = lambda t : 1
+
+            # The dirichlet and neumann effects on the boundary
+            dirichlet_u = lambda x,t : 0
+            neumann_u = lambda x,t : 0
+
+            # Combination of all effects
+            gamma = alpha(t)*dirichlet_u(x,t) + beta(t)*neumann_u(x,t)
+
+            return gamma, alpha(t)
+
+        # Call the pde solver function, using the Crank-Nicholson method
+        u, t = solve_pde(self.L, self.T, self.mx, self.mt, 'robin', robin_BC, self.u_I, solver='feuler', kappa = lambda x:x/(x*10))
+        bool = np.less(np.abs(u[:,-1] - self.exact_sol_nhomo), [10**-3]*len(self.exact_sol_nhomo))
+        self.assertTrue(bool.all())
+
+    ######################################################################################################################
+
+    def test_periodic_boundaries(self):
+
+        def homo_BC(x,t):
+            '''
+            Function containing the homogeneous boundary conditions.
+            '''
+            return 0
+
+        def IC(x, L):
+            '''
+            The initial conditions for the PDE
+            '''
+            return x+2
+
+        def exact_sol(xx, t_plot):
+            # Exact solution
+            sol = 5/2
+            sum=0
+            for n in range(100):
+                n+= 1
+                sum += (np.sin(2*n*np.pi*xx)*(np.e**((-4*(np.pi**2) * (n**2) * t_plot))))/(n*np.pi)
+            sol = sol - sum
+            return sol
+
+        u_exact = exact_sol(np.linspace(0,self.L,self.mx), 0.01)
+
+        u,t = solve_pde(self.L, 0.1, self.mx, self.mt, 'periodic', homo_BC, IC, solver='beuler', kappa = lambda x:np.ones(len(x)))
+
+        bool = np.less(np.abs(u[:,-1] - u_exact), [10]*len(u_exact))
+        self.assertTrue(bool.all())
+
+    ######################################################################################################################
+
+    def test_linear_rhs(self):
+
+        def exact_sol(xx, t_plot):
+            # Exact solution for linear problem
+            sum = 0
+            for n in range(100):
+                n+=1
+                sum += ((np.sin(n*np.pi*xx)*np.e**(-1*(np.pi**2)*(n**2)*t_plot))*(((-1)**n)*(n**2)*(np.pi**2) -  (n**2)*(np.pi**2) - ((-1)**n)))/((n**3)*(np.pi**3))
+            sol = -2*sum - ((xx**3)/(6)) + ((xx)/(6))
+            return sol
+
+        u_exact = exact_sol(np.linspace(0,self.L,self.mx+1), self.T)
+
+        u,t = solve_pde(self.L, self.T, self.mx, self.mt, 'dirichlet', lambda x,t:0, lambda x,L : 1, solver='cn', 
+                RHS = lambda x,t : x, kappa = lambda x:np.ones(len(x)), linearity='linear')
+
+        bool = np.less(np.abs(u[:,-1] - u_exact), [10**-3]*len(u_exact))
+        self.assertTrue(bool.all())
 
 if __name__ == '__main__':
     unittest.main()
