@@ -871,7 +871,7 @@ def main():
 
     p.plot_pde_specific_time(u, t, 0.5, L, 'Diffusion Solution', u_exact)
 
-    # Below is an example of a linear RHS function $F(u, x,t) = u$, such that the PDE is
+    # Below is an example of a non-linear RHS function $F(u, x,t) = u$, such that the PDE is
     # 
     # $\frac{\partial u}{\partial t} = \kappa \frac{\partial^{2} u}{\partial x^{2}} + u$,
     # 
