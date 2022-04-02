@@ -4,7 +4,7 @@ from ode_solvers import solve_ode
 from numerical_shooting import numerical_shooting
 from ode import *
 from pde_solvers import *
-import plots as p
+from math import pi
 
 
 class TestODESolvers(unittest.TestCase):
@@ -107,7 +107,6 @@ class TestNumericalShooting(unittest.TestCase):
         # Tests gracefulness of non-convergence
         X0= numerical_shooting([1.3, -1.3], 100, predator_prey, pc_predator_prey, a=1, b=0.2, d=0.1)
         assert(X0==[])
-
 
 class TestPDESolvers(unittest.TestCase):
 
