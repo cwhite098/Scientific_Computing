@@ -203,12 +203,6 @@ def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity=
             A1 = (identity(u.shape[0]) + 0.5*Lmat) # matrix to multiply uj
             A2 = (identity(u.shape[0]) - 0.5*Lmat) # matrix to mulitply uj+1
 
-            U_new = A1.dot(u[:,j])
-            U_new += (deltat/2)*(RHS(x, t[j]) + RHS(x, t[j+1])) # apply RHS
-
-            U_new = boundary_operator(U_new, j+1, BC, L, t, BC_type) # apply boundary
-            u[:, j+1] = spsolve(A2, U_new)
-
         else: # neumann or robin case
 
             Lmat1 = construct_L(u, j, BC, L, t, x, kappa, BC_type)
@@ -216,11 +210,12 @@ def crank_nicholson_step(u, t, x, L, BC, BC_type, j, kappa, RHS=None, linearity=
             Lmat2 = construct_L(u, j+1, BC, L, t, x, kappa, BC_type)
             A2 = (identity(u.shape[0]) - 0.5*Lmat2) # matrix to mulitply uj+1
     
-            U_new = A1.dot(u[:,j])
-            U_new += (deltat/2)*(RHS(x, t[j]) + RHS(x, t[j+1])) # apply RHS
+        U_new = A1.dot(u[:,j])
+        U_new += (deltat/2)*(RHS(x, t[j]) + RHS(x, t[j+1])) # apply RHS
 
-            U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True) #apply boundary
-            u[:,j+1] = spsolve(A2, U_new)
+        U_new = boundary_operator(U_new, j, BC, L, t, BC_type, CN=True) #apply boundary
+        u[:,j+1] = spsolve(A2, U_new)
+
 
     elif linearity == 'nonlinear':
 
