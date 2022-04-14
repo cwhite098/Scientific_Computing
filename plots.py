@@ -1,7 +1,15 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import ode_solvers as ode
 from ode import *
+
+
+# Set up mpl
+mpl.rcParams['font.size'] = 12
+mpl.rcParams['figure.titlesize'] = 'large'
+mpl.rcParams['lines.linewidth'] = 2
+mpl.rcParams['axes.labelsize'] = 'large'
 
 
 def plot_solution(t, X, xlabel='t', ylabel='x', title='Solution', X_true=None):
