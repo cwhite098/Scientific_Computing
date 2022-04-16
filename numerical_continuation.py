@@ -157,6 +157,7 @@ def natural_parameter(param_list, sols, param_to_vary, function, discretisation,
         List containing all the parameter values that have been used to evaluate the system
     '''
     T_guess = 5
+    Ts = []
     if discretisation == numerical_shooting:
         for i in range(len(param_list)):
             # Set the value of the varying parameter
@@ -165,12 +166,13 @@ def natural_parameter(param_list, sols, param_to_vary, function, discretisation,
             try:
                 X0, T = numerical_shooting(prev_sol.copy(), T_guess, function, phase_condition, **params)
                 sols.append(list(X0))
+                Ts.append(T)
             except ValueError:
                 print('Root finder did not converge, try different T_guess')
                 break
 
         # Remove initial u
-        return sols, param_list
+        return sols, param_list, Ts
 
     # If not an ODE and shooting is not required
     else:
@@ -182,7 +184,7 @@ def natural_parameter(param_list, sols, param_to_vary, function, discretisation,
             root = fsolve(discretisation(function), sols[i], args=params)
             sols.append(root)
     
-    return sols, param_list
+    return sols, param_list, [T_guess]
 
 
 
@@ -238,19 +240,11 @@ def pseudo_arclength(param_list, param_range, sols, param_to_vary, function, dis
         
         # Generate the first 2 system states and parameter values
         if len(sols)==1:
-            for i in range(2):
-                # Set parameter
-                param1 = param_list[-2+i]
-                params[param_to_vary] = param1
-                # If ODE system
-                if discretisation == numerical_shooting:
-                    X0, T = numerical_shooting(sols[-1].copy(), Ts[-1], function, phase_condition, **params)
-                    u1 = list(X0)
-                    Ts.append(T)
-                # If non-ODE system
-                else:
-                    u1 = fsolve(discretisation(function), initial_u, args=params)
-                sols.append(list(u1))
+            # Two iterations of natural parameter continuation
+            X0, NPCparams, T = natural_parameter(param_list, sols.copy(), param_to_vary, function, discretisation, phase_condition, **params)
+            u1 = list(X0[-1])
+            Ts = T
+            sols = X0[-2:]
 
         # Get system states and param values for next continuation step      
         u1 = np.array(sols[-2])
@@ -350,13 +344,16 @@ def continuation(initial_u, param_to_vary, param_range, no_param_values, functio
     # Select and carry out method
     if method == 'pseudo-arclength':
         sols, param_list = pseudo_arclength(param_list, param_range, sols, param_to_vary, function, discretisation, Ts, phase_condition, **params)
+        sols = np.array(sols)
     elif method == 'natural-parameter':
-        sols, param_list = natural_parameter(param_list, sols, param_to_vary, function, discretisation, phase_condition, **params)
+        sols, param_list, T = natural_parameter(param_list, sols, param_to_vary, function, discretisation, phase_condition, **params)
+        # Remove initial_u from solution vector
+        sols = np.array(sols[1:])
     else:
         raise ValueError('Incorrect method specified!')
 
     # Remove initial_u from solution vector
-    sols = np.array(sols[1:])
+    #sols = np.array(sols[1:])
     return sols, param_list
 
 
