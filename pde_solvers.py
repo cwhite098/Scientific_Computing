@@ -475,7 +475,6 @@ def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa =
     t = np.linspace(0, T, mt+1)     # mesh points in time
     deltax = x[1] - x[0]            # gridspacing in x
     deltat = t[1] - t[0]            # gridspacing in t
-    #lmbda = kappa*deltat/(deltax**2)    # mesh fourier number
 
     kappas = kappa(x)
     lmbdas = kappas*deltat/(deltax**2)
@@ -528,8 +527,6 @@ def solve_pde(L, T, mx, mt, BC_type, BC, IC, solver, RHS = lambda x,t:0, kappa =
 
         # Carry out solver step, including the boundaries
         u = solver(u, t, x, L, BC, BC_type, j, kappa, RHS, linearity=linearity)
-        # Apply the effect of the RHS function
-        #u[:,j+1] += deltat*RHS(x, t[j])
 
     return u, t
 
