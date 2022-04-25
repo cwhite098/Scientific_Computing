@@ -265,19 +265,34 @@ def plot_orbit(X0, T, f, title, **params):
     plot_solution(t, X, 't', 'X', title)
 
 
-def animate_solution(u, t, L, T):
+def animate_solution(u, t, L):
+    '''
+    Function that produces an animation of a numerical solution of a PDE, produced by a finite difference method.
 
+    Parameters
+    ----------
+    u : np.array
+        Array containing the solution to the PDE at each time step, discretised in space.
 
+        This is returned by the solve_pde function.
+    t : np.array
+        Array containing the times that the PDE is evaluated at in u.
+
+    L : float
+        The extent of the spatial domain in which the PDE is solved.
+    '''
+
+    # Set up the axis and the solution line
     fig, ax = plt.subplots()
     xdata, ydata = np.linspace(0,L,u.shape[0]), []
     ln, = plt.plot([], [], 'ro')
 
-
     def init():
-
+        # Init axis limits
         ax.set_xlim(0, L)
         ax.set_ylim(np.min(u), np.max(u))
 
+        # Init title and axis labels
         ax.set_title('Solution at t =')
         ax.set_xlabel('x')
         ax.set_ylabel('u')
@@ -285,15 +300,18 @@ def animate_solution(u, t, L, T):
         return ln,
 
     def update(frame):
-
+        # Update the ydata - u
         ydata = u[:,int(frame)]
 
+        # Update the title
         title = 'Solution at t = ' +  str(np.round(t[int(frame)], decimals = 3))
         ax.set_title(title)
 
+        # Set the line parameters
         ln.set_data(xdata, ydata)
         return ln,
 
+    # Create the animation
     ani = FuncAnimation(fig, update, frames=np.linspace(0, u.shape[1]-1, u.shape[1]),
                         init_func=init, blit=False, interval = 10)
     plt.show()
