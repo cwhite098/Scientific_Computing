@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.animation import FuncAnimation
 import numpy as np
 import ode_solvers as ode
 from ode import *
@@ -262,4 +263,38 @@ def plot_orbit(X0, T, f, title, **params):
     t = np.linspace(0,T,1000)
     X = ode.solve_ode('rk4', f, t, X0, **params, h_max=0.001)
     plot_solution(t, X, 't', 'X', title)
+
+
+def animate_solution(u, t, L, T):
+
+
+    fig, ax = plt.subplots()
+    xdata, ydata = np.linspace(0,L,u.shape[0]), []
+    ln, = plt.plot([], [], 'ro')
+
+
+    def init():
+
+        ax.set_xlim(0, L)
+        ax.set_ylim(np.min(u), np.max(u))
+
+        ax.set_title('Solution at t =')
+        ax.set_xlabel('x')
+        ax.set_ylabel('u')
+
+        return ln,
+
+    def update(frame):
+
+        ydata = u[:,int(frame)]
+
+        title = 'Solution at t = ' +  str(np.round(t[int(frame)], decimals = 3))
+        ax.set_title(title)
+
+        ln.set_data(xdata, ydata)
+        return ln,
+
+    ani = FuncAnimation(fig, update, frames=np.linspace(0, u.shape[1]-1, u.shape[1]),
+                        init_func=init, blit=False, interval = 10)
+    plt.show()
 
