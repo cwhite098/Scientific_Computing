@@ -576,9 +576,11 @@ def main():
     # The solve_pde function returns an array, u, where the rows correspond to the spatial dimension and the columns 
     # to each time value returned in the other array, t.
     # 
-    # This package contains some functions that can be used to plot the solutions, both as a 2D plot, showing the spatial 
-    # and temporal dimensions as well as a slice of the solution at a specific time. The latter type of plot can also be used 
-    # to show a comparison with the analytical solution, if one exists.
+    # This package contains some functions that can be used to plot the solutions, either as a 2D plot, 
+    # showing the spatial and temporal dimensions, a slice of the solution at a specific time or as an animation showing 
+    # how the solution evolves in time. The specific time plot can be used to show a comparison with the analytical solution, if one exists.
+
+    from plots import plot_pde_space_time_solution, plot_pde_specific_time, animate_solution
 
     def u_exact(x,t, kappa, L):
         '''
@@ -587,10 +589,15 @@ def main():
         y = np.exp(-kappa*(np.pi**2/L**2)*t)*np.sin(np.pi*x/L)
         return y
 
-    p.plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map') # plot the 2D heatmap
+    # PLot heatmap
+    plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map') # plot the 2D heatmap
 
+    # Plot specific time solution
     exact_solution = u_exact(np.linspace(0,L,mx+1), 0.3, 0.1, L)
-    p.plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', exact_solution) # plot the slice at t=0.3
+    plot_pde_specific_time(u, t, 0.3, L, 'Diffusion Solution', exact_solution) # plot the slice at t=0.3
+
+    # Create and show animation.
+    animate_solution(u,t,L)
 
     # The same approach can be used to solve the same PDE with homogeneous Neumann boundary conditions,
     # 
@@ -813,6 +820,7 @@ def main():
     u, t = solve_pde(L, T, mx, mt, 'robin', robin_BC, IC, solver='cn', kappa = lambda x:x**2) # note the kappa function returning x^2
 
     p.plot_pde_space_time_solution(u, L, T, 'Space Time Solution Heat Map') # plot the 2D heatmap
+    animate_solution(u,t,L,T)
 
     # ### Non Homogeneous RHS Function
     # 
