@@ -19,6 +19,8 @@ def euler_step(X, t, h, f, **params):
         The timestep to be carried out.
     f : function
         The function containing the ODE that is being solved.
+    **params:
+        Any parameters required to evaluate the ODE.
 
     Returns
     -------    
@@ -50,6 +52,8 @@ def RK4_step(X, t, h, f, **params):
         The timestep to be carried out.
     f : function
         The function containing the ODE that is being solved.
+    **params:
+        Any parameters required to evaluate the ODE.
 
     Returns
     -------    
@@ -85,6 +89,8 @@ def midpoint_step(X, t, h, f, **params):
         The timestep to be carried out.
     f : function
         The function containing the ODE that is being solved.
+    **params:
+        Any parameters required to evaluate the ODE.
 
     Returns
     -------    
@@ -115,6 +121,8 @@ def heun3_step(X, t, h, f, **params):
         The timestep to be carried out.
     f : function
         The function containing the ODE that is being solved.
+    **params:
+        Any parameters required to evaluate the ODE.
 
     Returns
     -------    
